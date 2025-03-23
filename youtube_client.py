@@ -1,7 +1,7 @@
 import os
 import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from config import YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REDIRECT_URI
 
@@ -22,7 +22,7 @@ class YouTubeClient:
         # If no valid credentials, let the user log in.
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
-                self.creds.refresh(Request())
+                self.creds.refresh(GoogleAuthRequest())
             else:
                 flow = InstalledAppFlow.from_client_config(
                     {

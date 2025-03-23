@@ -1,14 +1,26 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
-from spotify_client import SpotifyClient
-from youtube_client import YouTubeClient
-from track_matcher import match_track
 from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import time
 from googleapiclient.errors import HttpError
+from spotify_client import *
+from youtube_client import *
+from track_matcher import *
+from data_storage import *
 
-app = FastAPI(title="Spotify to YouTube Music Playlist Migrator")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Equivalent to "startup" work
+    init_db()
+    # Hand over control to the application
+    yield
+    # Cleanup or "shutdown" logic goes here if needed
+
+
+app = FastAPI(title="Spotify to YouTube Music Playlist Migrator", lifespan=lifespan)
 
 
 @app.get("/")
@@ -38,11 +50,9 @@ async def spotify_callback(request: Request):
 
 @app.get("/migrate")
 def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
-    # Initialize clients
     spotify = SpotifyClient()
     yt = YouTubeClient()
 
-    # Retrieve Spotify tracks
     try:
         tracks = spotify.get_playlist_tracks(spotify_playlist_id)
     except Exception as e:
@@ -50,7 +60,6 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
             status_code=400, detail=f"Error retrieving Spotify playlist: {str(e)}"
         )
 
-    # Create a new YouTube playlist
     try:
         yt_playlist_id = yt.create_playlist(
             title=youtube_playlist_title, description="Migrated from Spotify"
@@ -60,11 +69,35 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
             status_code=400, detail=f"Error creating YouTube playlist: {str(e)}"
         )
 
-    # Process each track: search YouTube and add to the playlist
     for track in tracks:
+        # Build a query for the search
         query = f"{track['name']} {track['artist']}"
-        # Retrieve a candidate video from YouTube
-        video_id = yt.search_video(query)
+
+        # Use the track's unique Spotify name+artist as an identifier
+        # Alternatively, you could store the actual Spotify track ID if available
+        spotify_unique_id = f"{track['name']}|{track['artist']}"
+
+        # Check if we already have a match in the cache
+        cached_youtube_id = get_matched_youtube_id(spotify_unique_id)
+
+        # If no cached match, do a new search
+        if not cached_youtube_id:
+            try:
+                video_id = yt.search_video(query)
+                if video_id:
+                    save_matched_track(spotify_unique_id, video_id)
+                else:
+                    print(
+                        f"No matching video found for track: {track['name']} by {track['artist']}"
+                    )
+                    continue
+            except HttpError as e:
+                print(f"Error searching for track: {e}")
+                continue
+        else:
+            video_id = cached_youtube_id
+
+        # Now add the matched video to the playlist, with retry logic
         if video_id:
             retries = 0
             max_retries = 3
@@ -73,22 +106,16 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
                     yt.add_video_to_playlist(
                         playlist_id=yt_playlist_id, video_id=video_id
                     )
-                    print(
-                        f"Successfully added video {video_id} for track '{track['name']}'"
-                    )
-                    break  # Exit the retry loop on success
+                    print(f"Successfully added {video_id} for track '{track['name']}'")
+                    break
                 except HttpError as e:
-                    print(f"Attempt {retries+1} failed for video {video_id}: {e}")
+                    print(f"Attempt {retries + 1} failed for video {video_id}: {e}")
                     retries += 1
-                    time.sleep(2**retries)  # Exponential backoff: 2, 4, 8 seconds...
-                except Exception as e:
-                    print(f"Unexpected error for video {video_id}: {e}")
-                    break  # Exit loop if error is not HttpError
+                    time.sleep(2**retries)
+                except Exception as ex:
+                    print(f"Unexpected error for video {video_id}: {ex}")
+                    break
             if retries == max_retries:
                 print(f"Failed to add video {video_id} after {max_retries} attempts.")
-        else:
-            print(
-                f"No matching video found for track: {track['name']} by {track['artist']}"
-            )
 
     return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
