@@ -1,0 +1,8 @@
+fastapi == 0.115.11
+uvicorn == 0.34.0
+python-dotenv == 1.0.1
+spotipy == 2.25.1
+google-api-python-client == 2.163.0
+google-auth-httplib2 == 0.2.0
+google-auth-oauthlib == 1.2.1
+rapidfuzz == 3.12.2
