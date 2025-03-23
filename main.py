@@ -83,6 +83,8 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
             )
 
     # 3. Iterate over each Spotify track and add to YT if not already in playlist
+    failed_attempts = []  # keep track of songs that fail after all retries
+
     for track in tracks:
         query = f"{track['name']} {track['artist']}"
         spotify_unique_id = f"{track['name']}|{track['artist']}"
@@ -105,25 +107,27 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
         else:
             video_id = cached_youtube_id
 
-        # If video already in playlist, skip
+        # Skip if already in this playlist
         if video_id in existing_videos:
             print(
                 f"Skipping '{track['name']}' (video_id={video_id}) - already in playlist."
             )
             continue
 
-        # Retry logic to add the video
+        # Attempt to add the video with retries
         if video_id:
             retries = 0
             max_retries = 3
+            added_successfully = False
+
             while retries < max_retries:
                 try:
                     yt.add_video_to_playlist(
                         playlist_id=yt_playlist_id, video_id=video_id
                     )
                     print(f"Successfully added {video_id} for track '{track['name']}'")
-                    # Once added, record it in 'existing_videos'
                     existing_videos.add(video_id)
+                    added_successfully = True
                     break
                 except HttpError as e:
                     print(f"Attempt {retries + 1} failed for video {video_id}: {e}")
@@ -132,7 +136,28 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
                 except Exception as ex:
                     print(f"Unexpected error for video {video_id}: {ex}")
                     break
-            if retries == max_retries:
+
+            if not added_successfully:
                 print(f"Failed to add video {video_id} after {max_retries} attempts.")
+                failed_attempts.append(
+                    (spotify_unique_id, video_id, "Add to playlist failed")
+                )
+
+    # 4. Record failed songs in DB and attempt a second pass
+    for spotify_id, yid, reason in failed_attempts:
+        record_failed_track(spotify_id, yid, reason)
+
+    # Immediate second pass, ignoring concurrency concerns
+    for spotify_id, yid, reason in failed_attempts:
+        print(f"Retrying failed track: {spotify_id} => {yid}")
+        try:
+            yt.add_video_to_playlist(playlist_id=yt_playlist_id, video_id=yid)
+            print(f"Second-pass success: {yid} for track {spotify_id}")
+            clear_failed_track(spotify_id)  # remove from failed_tracks if successful
+        except HttpError as e:
+            print(f"Second-pass attempt failed for {yid}: {e}")
+            # We leave it in the DB for potential later tries
+        except Exception as ex:
+            print(f"Unexpected error in second-pass for {yid}: {ex}")
 
     return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}

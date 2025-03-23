@@ -1,3 +1,4 @@
+# Environment variables file containing sensitive credentials
 .env
 .cache
 token.pickle
