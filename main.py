@@ -53,6 +53,7 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
     spotify = SpotifyClient()
     yt = YouTubeClient()
 
+    # 1. Get tracks from Spotify
     try:
         tracks = spotify.get_playlist_tracks(spotify_playlist_id)
     except Exception as e:
@@ -60,24 +61,31 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
             status_code=400, detail=f"Error retrieving Spotify playlist: {str(e)}"
         )
 
-    try:
-        yt_playlist_id = yt.create_playlist(
-            title=youtube_playlist_title, description="Migrated from Spotify"
+    # 2. Check if a playlist with this name already exists
+    existing_playlist_id = yt.find_playlist_by_name(youtube_playlist_title)
+    if existing_playlist_id:
+        yt_playlist_id = existing_playlist_id
+        print(
+            f"Using existing playlist '{youtube_playlist_title}' ({existing_playlist_id})."
         )
-    except Exception as e:
-        raise HTTPException(
-            status_code=400, detail=f"Error creating YouTube playlist: {str(e)}"
-        )
+        # Fetch existing videos in this playlist
+        existing_videos = set(yt.get_playlist_items(yt_playlist_id))
+    else:
+        # Create a new YouTube playlist if none found
+        try:
+            yt_playlist_id = yt.create_playlist(
+                title=youtube_playlist_title, description="Migrated from Spotify"
+            )
+            existing_videos = set()  # new playlist, no videos yet
+        except Exception as e:
+            raise HTTPException(
+                status_code=400, detail=f"Error creating YouTube playlist: {str(e)}"
+            )
 
+    # 3. Iterate over each Spotify track and add to YT if not already in playlist
     for track in tracks:
-        # Build a query for the search
         query = f"{track['name']} {track['artist']}"
-
-        # Use the track's unique Spotify name+artist as an identifier
-        # Alternatively, you could store the actual Spotify track ID if available
         spotify_unique_id = f"{track['name']}|{track['artist']}"
-
-        # Check if we already have a match in the cache
         cached_youtube_id = get_matched_youtube_id(spotify_unique_id)
 
         # If no cached match, do a new search
@@ -97,7 +105,14 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
         else:
             video_id = cached_youtube_id
 
-        # Now add the matched video to the playlist, with retry logic
+        # If video already in playlist, skip
+        if video_id in existing_videos:
+            print(
+                f"Skipping '{track['name']}' (video_id={video_id}) - already in playlist."
+            )
+            continue
+
+        # Retry logic to add the video
         if video_id:
             retries = 0
             max_retries = 3
@@ -107,6 +122,8 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
                         playlist_id=yt_playlist_id, video_id=video_id
                     )
                     print(f"Successfully added {video_id} for track '{track['name']}'")
+                    # Once added, record it in 'existing_videos'
+                    existing_videos.add(video_id)
                     break
                 except HttpError as e:
                     print(f"Attempt {retries + 1} failed for video {video_id}: {e}")
