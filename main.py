@@ -90,7 +90,10 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
         spotify_unique_id = f"{track['name']}|{track['artist']}"
         cached_youtube_id = get_matched_youtube_id(spotify_unique_id)
 
-        # If no cached match, do a new search
+        # Check if this track has a previous failed record
+        failed_record = get_failed_track(spotify_unique_id)
+
+        # If no cached match, perform a new search
         if not cached_youtube_id:
             try:
                 video_id = yt.search_video(query)
@@ -107,14 +110,14 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
         else:
             video_id = cached_youtube_id
 
-        # Skip if already in this playlist
-        if video_id in existing_videos:
+        # If the video is already in the playlist and there's no failed record, skip it.
+        if video_id in existing_videos and not failed_record:
             print(
                 f"Skipping '{track['name']}' (video_id={video_id}) - already in playlist."
             )
             continue
 
-        # Attempt to add the video with retries
+        # For tracks with failed records, or those not in the playlist, attempt addition.
         if video_id:
             retries = 0
             max_retries = 3
@@ -128,6 +131,9 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
                     print(f"Successfully added {video_id} for track '{track['name']}'")
                     existing_videos.add(video_id)
                     added_successfully = True
+                    # If there was a previous failure record, clear it upon success.
+                    if failed_record:
+                        clear_failed_track(spotify_unique_id)
                     break
                 except HttpError as e:
                     print(f"Attempt {retries + 1} failed for video {video_id}: {e}")

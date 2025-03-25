@@ -88,6 +88,22 @@ def record_failed_track(spotify_id: str, youtube_id: str, reason: str):
     conn.close()
 
 
+def get_failed_track(spotify_id: str) -> tuple:
+    """
+    Retrieves a failed record for the given Spotify track ID from the 'failed_tracks' table.
+    Returns a tuple (spotify_id, youtube_id, reason) if found, otherwise None.
+    """
+    conn = sqlite3.connect(DB_DIRECTORY)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT spotify_id, youtube_id, reason FROM failed_tracks WHERE spotify_id=?",
+        (spotify_id,),
+    )
+    row = cur.fetchone()
+    conn.close()
+    return row
+
+
 def get_failed_tracks() -> list:
     """
     Retrieves all entries from the 'failed_tracks' table.
