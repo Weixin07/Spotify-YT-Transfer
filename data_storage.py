@@ -18,19 +18,21 @@ def init_db():
     conn = sqlite3.connect(DB_DIRECTORY)
     cur = conn.cursor()
 
-    # Existing matched_tracks table
+    # Updated matched_tracks table to store full metadata.
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS matched_tracks (
             spotify_id TEXT PRIMARY KEY,
+            song_name TEXT,
+            artist TEXT,
+            album TEXT,
             youtube_id TEXT
         )
         """
     )
-    logging.info("Table 'matched_tracks' ensured.")
+    logging.info("Table 'matched_tracks' ensured with metadata columns.")
 
-    # New failed_tracks table
-    # Stores Spotify ID, corresponding YouTube ID, and a reason for failure
+    # Failed tracks table remains unchanged.
     cur.execute(
         """
         CREATE TABLE IF NOT EXISTS failed_tracks (
@@ -47,41 +49,51 @@ def init_db():
     logging.info("Database initialization complete.")
 
 
-def get_matched_youtube_id(spotify_id: str) -> str:
+def get_matched_track(spotify_id: str) -> dict:
     """
-    Retrieves the YouTube video ID mapped to the given Spotify track ID.
-    Returns None if it doesn't exist in the database.
+    Retrieves the full record mapped to the given Spotify track ID.
+    Returns a dict with keys: spotify_id, song_name, artist, album, youtube_id.
+    Returns None if no record exists.
     """
-    logging.info(f"Retrieving matched YouTube ID for Spotify ID: {spotify_id}")
+    logging.info(f"Retrieving full match record for Spotify ID: {spotify_id}")
     conn = sqlite3.connect(DB_DIRECTORY)
     cur = conn.cursor()
     cur.execute(
-        "SELECT youtube_id FROM matched_tracks WHERE spotify_id = ?", (spotify_id,)
+        "SELECT spotify_id, song_name, artist, album, youtube_id FROM matched_tracks WHERE spotify_id = ?",
+        (spotify_id,),
     )
     row = cur.fetchone()
     conn.close()
     if row:
-        logging.info(f"Found matched YouTube ID: {row[0]}")
-        return row[0]
-    logging.info("No matched YouTube ID found.")
+        logging.info(f"Found matched record: {row}")
+        return {
+            "spotify_id": row[0],
+            "song_name": row[1],
+            "artist": row[2],
+            "album": row[3],
+            "youtube_id": row[4],
+        }
+    logging.info("No matched record found.")
     return None
 
 
-def save_matched_track(spotify_id: str, youtube_id: str):
+def save_matched_track(
+    spotify_id: str, song_name: str, artist: str, album: str, youtube_id: str
+):
     """
-    Saves or updates the mapping of a Spotify track ID to a YouTube video ID.
+    Saves or updates the mapping of a Spotify track ID to its metadata and YouTube video ID.
     """
     logging.info(
-        f"Saving matched track: Spotify ID = {spotify_id}, YouTube ID = {youtube_id}"
+        f"Saving matched track: Spotify ID = {spotify_id}, YouTube ID = {youtube_id}, Song Name = {song_name}, Artist = {artist}, Album = {album}"
     )
     conn = sqlite3.connect(DB_DIRECTORY)
     cur = conn.cursor()
     cur.execute(
         """
-        INSERT OR REPLACE INTO matched_tracks (spotify_id, youtube_id)
-        VALUES (?, ?)
+        INSERT OR REPLACE INTO matched_tracks (spotify_id, song_name, artist, album, youtube_id)
+        VALUES (?, ?, ?, ?, ?)
         """,
-        (spotify_id, youtube_id),
+        (spotify_id, song_name, artist, album, youtube_id),
     )
     conn.commit()
     conn.close()
@@ -134,7 +146,7 @@ def get_failed_tracks() -> list:
     """
     Retrieves all entries from the 'failed_tracks' table.
     Returns a list of tuples [(spotify_id, youtube_id, reason), ...].
-    """
+    """ 
     logging.info("Retrieving all failed tracks from database.")
     conn = sqlite3.connect(DB_DIRECTORY)
     cur = conn.cursor()

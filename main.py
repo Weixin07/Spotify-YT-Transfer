@@ -112,15 +112,25 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
         )
         query = f"{track['name']} {track['artist']}"
         spotify_unique_id = f"{track['name']}|{track['artist']}"
-        cached_youtube_id = get_matched_youtube_id(spotify_unique_id)
+        matched_record = get_matched_track(spotify_unique_id)
         failed_record = get_failed_track(spotify_unique_id)
 
-        # If no cached match, perform a new search
-        if not cached_youtube_id:
+        # If a match exists, reuse its youtube_id; otherwise, perform a new search.
+        if matched_record:
+            video_id = matched_record["youtube_id"]
+            logging.info(f"Using cached match for track '{track['name']}': {video_id}.")
+        else:
             try:
                 video_id = yt.search_video(query)
                 if video_id:
-                    save_matched_track(spotify_unique_id, video_id)
+                    # Save full metadata: song name, artist, album, and youtube_id.
+                    save_matched_track(
+                        spotify_unique_id,
+                        track["name"],
+                        track["artist"],
+                        track.get("album", ""),
+                        video_id,
+                    )
                     logging.info(
                         f"Cached new match for track '{track['name']}': {video_id}."
                     )
@@ -132,20 +142,15 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
             except HttpError as e:
                 logging.error(f"Error searching for track '{track['name']}': {e}")
                 continue
-        else:
-            video_id = cached_youtube_id
-            logging.info(
-                f"Using cached YouTube video {video_id} for track '{track['name']}'."
-            )
 
-        # Skip if already in playlist and no failed record exists
+        # Skip if already in playlist and no failure exists.
         if video_id in existing_videos and not failed_record:
             logging.info(
                 f"Skipping track '{track['name']}' (video_id={video_id}) - already in playlist."
             )
             continue
 
-        # Attempt to add the video with retries
+        # Attempt to add the video with retries.
         if video_id:
             retries = 0
             max_retries = 3
@@ -187,7 +192,7 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
                     (spotify_unique_id, video_id, "Add to playlist failed")
                 )
 
-    # 4. Record failed songs in DB and attempt a second pass
+    # 4. Record failed songs in DB and attempt a second pass.
     for spotify_id, yid, reason in failed_attempts:
         record_failed_track(spotify_id, yid, reason)
         logging.info(
