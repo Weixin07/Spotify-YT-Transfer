@@ -1,5 +1,6 @@
 import os
 import pickle
+import logging
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
@@ -8,22 +9,31 @@ from config import YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REDIRECT_UR
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
+# Configure logging if not already configured by main application
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 
 class YouTubeClient:
     def __init__(self):
+        logging.info("Initializing YouTubeClient.")
         self.creds = None
         self.service = self.authenticate()
+        logging.info("YouTubeClient initialized successfully.")
 
     def authenticate(self):
-        # Token file stores the user's credentials
+        logging.info("Authenticating with YouTube API.")
         if os.path.exists("token.pickle"):
+            logging.info("Found existing token.pickle. Loading credentials.")
             with open("token.pickle", "rb") as token:
                 self.creds = pickle.load(token)
-        # If no valid credentials, let the user log in.
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
+                logging.info("Credentials expired. Refreshing token.")
                 self.creds.refresh(GoogleAuthRequest())
             else:
+                logging.info("No valid credentials found. Initiating OAuth2 flow.")
                 flow = InstalledAppFlow.from_client_config(
                     {
                         "installed": {
@@ -37,9 +47,11 @@ class YouTubeClient:
                     SCOPES,
                 )
                 self.creds = flow.run_local_server(port=8001)
-            # Save the credentials for the next run
             with open("token.pickle", "wb") as token:
                 pickle.dump(self.creds, token)
+            logging.info("New credentials saved to token.pickle.")
+        else:
+            logging.info("Using valid credentials from token.pickle.")
         return build("youtube", "v3", credentials=self.creds)
 
     def find_playlist_by_name(self, playlist_name: str) -> str:
@@ -47,21 +59,29 @@ class YouTubeClient:
         Checks if a playlist with the given name already exists in the user's account.
         Returns the playlist ID if found, otherwise None.
         """
+        logging.info(f"Searching for existing playlist with name: '{playlist_name}'.")
         page_token = None
+        page = 1
         while True:
             response = (
                 self.service.playlists()
                 .list(part="snippet", mine=True, maxResults=50, pageToken=page_token)
                 .execute()
             )
-
+            logging.info(
+                f"Processing page {page} of playlists. Items found: {len(response.get('items', []))}."
+            )
             for item in response.get("items", []):
-                if item["snippet"]["title"].lower() == playlist_name.lower():
+                title = item["snippet"]["title"]
+                logging.info(f"Found playlist: '{title}'.")
+                if title.lower() == playlist_name.lower():
+                    logging.info(f"Match found. Playlist ID: {item['id']}")
                     return item["id"]
-
             page_token = response.get("nextPageToken")
             if not page_token:
                 break
+            page += 1
+        logging.info("No matching playlist found.")
         return None
 
     def get_playlist_items(self, playlist_id: str) -> list:
@@ -69,8 +89,10 @@ class YouTubeClient:
         Retrieves all video IDs currently in the specified playlist.
         Returns a list of video IDs.
         """
+        logging.info(f"Retrieving videos from playlist ID: {playlist_id}")
         page_token = None
         video_ids = []
+        page = 1
         while True:
             response = (
                 self.service.playlistItems()
@@ -82,18 +104,22 @@ class YouTubeClient:
                 )
                 .execute()
             )
-
-            for item in response.get("items", []):
+            items = response.get("items", [])
+            logging.info(f"Page {page}: Retrieved {len(items)} items.")
+            for idx, item in enumerate(items, start=1):
                 resource = item["snippet"]["resourceId"]
                 if resource["kind"] == "youtube#video":
                     video_ids.append(resource["videoId"])
-
+                    logging.info(f"Page {page} - Video {idx}: {resource['videoId']}")
             page_token = response.get("nextPageToken")
             if not page_token:
                 break
+            page += 1
+        logging.info(f"Total videos retrieved: {len(video_ids)}")
         return video_ids
 
     def search_video(self, query: str):
+        logging.info(f"Searching YouTube for query: '{query}'")
         request = self.service.search().list(
             part="snippet", q=query, type="video", maxResults=1
         )
@@ -101,10 +127,15 @@ class YouTubeClient:
         items = response.get("items", [])
         if items:
             video_id = items[0]["id"]["videoId"]
+            logging.info(f"Search successful. Found video ID: {video_id}")
             return video_id
+        logging.info("Search returned no results.")
         return None
 
     def create_playlist(self, title: str, description: str = ""):
+        logging.info(
+            f"Creating YouTube playlist: '{title}' with description: '{description}'"
+        )
         request = self.service.playlists().insert(
             part="snippet,status",
             body={
@@ -113,9 +144,12 @@ class YouTubeClient:
             },
         )
         response = request.execute()
-        return response.get("id")
+        playlist_id = response.get("id")
+        logging.info(f"Playlist created with ID: {playlist_id}")
+        return playlist_id
 
     def add_video_to_playlist(self, playlist_id: str, video_id: str):
+        logging.info(f"Adding video ID: {video_id} to playlist ID: {playlist_id}")
         request = self.service.playlistItems().insert(
             part="snippet",
             body={
@@ -126,4 +160,5 @@ class YouTubeClient:
             },
         )
         response = request.execute()
+        logging.info(f"Video {video_id} added to playlist {playlist_id} successfully.")
         return response

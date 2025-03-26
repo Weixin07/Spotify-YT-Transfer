@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
@@ -10,14 +11,18 @@ from youtube_client import *
 from track_matcher import *
 from data_storage import *
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Equivalent to "startup" work
+    logging.info("Starting up: Initializing database.")
     init_db()
-    # Hand over control to the application
     yield
-    # Cleanup or "shutdown" logic goes here if needed
+    logging.info("Shutting down: Cleanup if needed.")
 
 
 app = FastAPI(title="Spotify to YouTube Music Playlist Migrator", lifespan=lifespan)
@@ -25,6 +30,7 @@ app = FastAPI(title="Spotify to YouTube Music Playlist Migrator", lifespan=lifes
 
 @app.get("/")
 def read_root():
+    logging.info("Received request at root endpoint.")
     return {"message": "Welcome to the Playlist Migrator API"}
 
 
@@ -32,10 +38,12 @@ def read_root():
 async def spotify_callback(request: Request):
     code = request.query_params.get("code")
     if not code:
+        logging.error("Spotify callback: Missing 'code' parameter.")
         raise HTTPException(
             status_code=400, detail="Missing code parameter in callback."
         )
     try:
+        logging.info("Processing Spotify callback with code received.")
         spotify_auth_manager = SpotifyOAuth(
             client_id=SPOTIFY_CLIENT_ID,
             client_secret=SPOTIFY_CLIENT_SECRET,
@@ -43,20 +51,29 @@ async def spotify_callback(request: Request):
             scope="playlist-read-private",
         )
         token_info = spotify_auth_manager.get_access_token(code)
+        logging.info("Spotify authentication successful.")
     except Exception as e:
+        logging.error(f"Spotify authentication failed: {e}")
         raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}")
     return {"message": "Spotify authentication successful", "token_info": token_info}
 
 
 @app.get("/migrate")
 def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
+    logging.info(
+        f"Migration started for Spotify playlist: {spotify_playlist_id} into YouTube playlist: '{youtube_playlist_title}'."
+    )
     spotify = SpotifyClient()
     yt = YouTubeClient()
 
     # 1. Get tracks from Spotify
     try:
         tracks = spotify.get_playlist_tracks(spotify_playlist_id)
+        logging.info(
+            f"Retrieved {len(tracks)} tracks from Spotify playlist {spotify_playlist_id}."
+        )
     except Exception as e:
+        logging.error(f"Error retrieving Spotify playlist: {e}")
         raise HTTPException(
             status_code=400, detail=f"Error retrieving Spotify playlist: {str(e)}"
         )
@@ -65,19 +82,23 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
     existing_playlist_id = yt.find_playlist_by_name(youtube_playlist_title)
     if existing_playlist_id:
         yt_playlist_id = existing_playlist_id
-        print(
-            f"Using existing playlist '{youtube_playlist_title}' ({existing_playlist_id})."
+        logging.info(
+            f"Using existing YouTube playlist '{youtube_playlist_title}' with ID {existing_playlist_id}."
         )
         # Fetch existing videos in this playlist
         existing_videos = set(yt.get_playlist_items(yt_playlist_id))
+        logging.info(f"Found {len(existing_videos)} existing videos in playlist.")
     else:
-        # Create a new YouTube playlist if none found
         try:
             yt_playlist_id = yt.create_playlist(
                 title=youtube_playlist_title, description="Migrated from Spotify"
             )
             existing_videos = set()  # new playlist, no videos yet
+            logging.info(
+                f"Created new YouTube playlist '{youtube_playlist_title}' with ID {yt_playlist_id}."
+            )
         except Exception as e:
+            logging.error(f"Error creating YouTube playlist: {e}")
             raise HTTPException(
                 status_code=400, detail=f"Error creating YouTube playlist: {str(e)}"
             )
@@ -85,12 +106,13 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
     # 3. Iterate over each Spotify track and add to YT if not already in playlist
     failed_attempts = []  # keep track of songs that fail after all retries
 
-    for track in tracks:
+    for idx, track in enumerate(tracks, start=1):
+        logging.info(
+            f"Processing track {idx}/{len(tracks)}: '{track['name']}' by {track['artist']}."
+        )
         query = f"{track['name']} {track['artist']}"
         spotify_unique_id = f"{track['name']}|{track['artist']}"
         cached_youtube_id = get_matched_youtube_id(spotify_unique_id)
-
-        # Check if this track has a previous failed record
         failed_record = get_failed_track(spotify_unique_id)
 
         # If no cached match, perform a new search
@@ -99,25 +121,31 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
                 video_id = yt.search_video(query)
                 if video_id:
                     save_matched_track(spotify_unique_id, video_id)
+                    logging.info(
+                        f"Cached new match for track '{track['name']}': {video_id}."
+                    )
                 else:
-                    print(
-                        f"No matching video found for track: {track['name']} by {track['artist']}"
+                    logging.warning(
+                        f"No matching video found for track: '{track['name']}' by {track['artist']}."
                     )
                     continue
             except HttpError as e:
-                print(f"Error searching for track: {e}")
+                logging.error(f"Error searching for track '{track['name']}': {e}")
                 continue
         else:
             video_id = cached_youtube_id
+            logging.info(
+                f"Using cached YouTube video {video_id} for track '{track['name']}'."
+            )
 
-        # If the video is already in the playlist and there's no failed record, skip it.
+        # Skip if already in playlist and no failed record exists
         if video_id in existing_videos and not failed_record:
-            print(
-                f"Skipping '{track['name']}' (video_id={video_id}) - already in playlist."
+            logging.info(
+                f"Skipping track '{track['name']}' (video_id={video_id}) - already in playlist."
             )
             continue
 
-        # For tracks with failed records, or those not in the playlist, attempt addition.
+        # Attempt to add the video with retries
         if video_id:
             retries = 0
             max_retries = 3
@@ -128,23 +156,33 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
                     yt.add_video_to_playlist(
                         playlist_id=yt_playlist_id, video_id=video_id
                     )
-                    print(f"Successfully added {video_id} for track '{track['name']}'")
+                    logging.info(
+                        f"Successfully added video {video_id} for track '{track['name']}'."
+                    )
                     existing_videos.add(video_id)
                     added_successfully = True
-                    # If there was a previous failure record, clear it upon success.
                     if failed_record:
                         clear_failed_track(spotify_unique_id)
+                        logging.info(
+                            f"Cleared previous failure record for track '{track['name']}'."
+                        )
                     break
                 except HttpError as e:
-                    print(f"Attempt {retries + 1} failed for video {video_id}: {e}")
                     retries += 1
+                    logging.error(
+                        f"Attempt {retries} failed for video {video_id} (track '{track['name']}'): {e}"
+                    )
                     time.sleep(2**retries)
                 except Exception as ex:
-                    print(f"Unexpected error for video {video_id}: {ex}")
+                    logging.error(
+                        f"Unexpected error for video {video_id} (track '{track['name']}'): {ex}"
+                    )
                     break
 
             if not added_successfully:
-                print(f"Failed to add video {video_id} after {max_retries} attempts.")
+                logging.error(
+                    f"Failed to add video {video_id} for track '{track['name']}' after {max_retries} attempts."
+                )
                 failed_attempts.append(
                     (spotify_unique_id, video_id, "Add to playlist failed")
                 )
@@ -152,18 +190,23 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
     # 4. Record failed songs in DB and attempt a second pass
     for spotify_id, yid, reason in failed_attempts:
         record_failed_track(spotify_id, yid, reason)
+        logging.info(
+            f"Recorded failed track {spotify_id} with video {yid} (Reason: {reason})."
+        )
 
-    # Immediate second pass, ignoring concurrency concerns
+    logging.info("Starting second pass for failed tracks.")
     for spotify_id, yid, reason in failed_attempts:
-        print(f"Retrying failed track: {spotify_id} => {yid}")
+        logging.info(f"Retrying failed track: {spotify_id} => {yid}")
         try:
             yt.add_video_to_playlist(playlist_id=yt_playlist_id, video_id=yid)
-            print(f"Second-pass success: {yid} for track {spotify_id}")
-            clear_failed_track(spotify_id)  # remove from failed_tracks if successful
+            logging.info(
+                f"Second-pass success: Added video {yid} for track {spotify_id}."
+            )
+            clear_failed_track(spotify_id)
         except HttpError as e:
-            print(f"Second-pass attempt failed for {yid}: {e}")
-            # We leave it in the DB for potential later tries
+            logging.error(f"Second-pass attempt failed for video {yid}: {e}")
         except Exception as ex:
-            print(f"Unexpected error in second-pass for {yid}: {ex}")
+            logging.error(f"Unexpected error in second-pass for video {yid}: {ex}")
 
+    logging.info(f"Migration complete. YouTube playlist ID: {yt_playlist_id}")
     return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
