@@ -119,17 +119,56 @@ class YouTubeClient:
         return video_ids
 
     def search_video(self, query: str):
-        logging.info(f"Searching YouTube for query: '{query}'")
-        request = self.service.search().list(
-            part="snippet", q=query, type="video", maxResults=1
+        logging.info(
+            f"Searching YouTube for query: '{query}' with one-by-one candidate evaluation."
         )
-        response = request.execute()
-        items = response.get("items", [])
-        if items:
-            video_id = items[0]["id"]["videoId"]
-            logging.info(f"Search successful. Found video ID: {video_id}")
-            return video_id
-        logging.info("Search returned no results.")
+        page_token = None
+        # Loop until a candidate meeting the Music criteria is found, or no more results are available.
+        while True:
+            request = self.service.search().list(
+                part="snippet",
+                q=query,
+                type="video",
+                maxResults=1,
+                pageToken=page_token,
+            )
+            response = request.execute()
+            items = response.get("items", [])
+            if not items:
+                logging.info("No more search results available.")
+                break
+            candidate = items[0]
+            video_id = candidate["id"]["videoId"]
+            logging.info(f"Evaluating candidate video ID: {video_id}")
+            # Retrieve detailed information for this candidate.
+            details_request = self.service.videos().list(
+                part="snippet,contentDetails,status", id=video_id
+            )
+            details_response = details_request.execute()
+            detail_items = details_response.get("items", [])
+            if detail_items:
+                video_details = detail_items[0]
+                category_id = video_details["snippet"].get("categoryId")
+                logging.info(
+                    f"Candidate video {video_id} has categoryId: {category_id}"
+                )
+                # Check if the candidate is in the Music category (typically categoryId "10")
+                if category_id == "10":
+                    logging.info(
+                        f"Candidate video {video_id} accepted as a Music video."
+                    )
+                    return video_id
+                else:
+                    logging.info(
+                        f"Candidate video {video_id} rejected (not in Music category)."
+                    )
+            # Move to next candidate if available.
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                logging.info(
+                    "Reached end of search results without finding a valid Music video."
+                )
+                break
         return None
 
     def create_playlist(self, title: str, description: str = ""):
