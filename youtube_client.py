@@ -138,7 +138,17 @@ class YouTubeClient:
                 logging.info("No more search results available.")
                 break
             candidate = items[0]
-            video_id = candidate["id"]["videoId"]
+            # Safely retrieve the candidate video ID
+            video_id = candidate.get("id", {}).get("videoId")
+            if not video_id:
+                logging.warning(
+                    "Candidate item missing 'videoId', skipping to next result."
+                )
+                page_token = response.get("nextPageToken")
+                if not page_token:
+                    logging.info("No further candidates available.")
+                    break
+                continue
             logging.info(f"Evaluating candidate video ID: {video_id}")
             # Retrieve detailed information for this candidate.
             details_request = self.service.videos().list(
