@@ -10,6 +10,7 @@ from spotify_client import *
 from youtube_client import *
 from track_matcher import *
 from data_storage import *
+from check_missing import *
 
 # Configure logging
 logging.basicConfig(
@@ -215,3 +216,12 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
 
     logging.info(f"Migration complete. YouTube playlist ID: {yt_playlist_id}")
     return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
+
+@app.get("/check_missing")
+def check_missing(spotify_playlist_id: str, youtube_playlist_id: str):
+    """
+    Endpoint to compare a Spotify playlist with a YouTube playlist.
+    Returns a list of missing tracks with their details.
+    """
+    missing_tracks = find_missing_tracks(spotify_playlist_id, youtube_playlist_id)
+    return {"missing_tracks": missing_tracks}
