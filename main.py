@@ -225,3 +225,17 @@ def check_missing(spotify_playlist_id: str, youtube_playlist_id: str):
     """
     missing_tracks = find_missing_tracks(spotify_playlist_id, youtube_playlist_id)
     return {"missing_tracks": missing_tracks}
+
+# Get YouTube Playlist ID by Playlist Name
+@app.get("/youtube/playlist")
+def get_youtube_playlist_id(playlist_name: str):
+    """
+    Retrieves the YouTube playlist ID for a given playlist name from the user's account.
+    If found, returns the playlist ID; otherwise, returns a not found message.
+    """
+    yt = YouTubeClient()
+    playlist_id = yt.find_playlist_by_name(playlist_name)
+    if playlist_id:
+        return {"playlist_name": playlist_name, "playlist_id": playlist_id}
+    else:
+        return {"message": f"Playlist '{playlist_name}' not found."}
