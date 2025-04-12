@@ -1,6 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
 from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -11,6 +12,7 @@ from youtube_client import *
 from track_matcher import *
 from data_storage import *
 from check_missing import *
+import download_cover 
 
 # Configure logging
 logging.basicConfig(
@@ -239,3 +241,17 @@ def get_youtube_playlist_id(playlist_name: str):
         return {"playlist_name": playlist_name, "playlist_id": playlist_id}
     else:
         return {"message": f"Playlist '{playlist_name}' not found."}
+    
+
+# Download Spotify Playlist Cover
+@app.get("/download_cover")
+def download_cover_endpoint(playlist_id: str, filename: str = "cover.jpg"):
+    """
+    Endpoint to download the Spotify playlist cover image.
+    Downloads the image using download_cover.py and returns it as a downloadable file.
+    """
+    try:
+        download_cover.download_playlist_cover(playlist_id, save_path=filename)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error downloading cover image: {str(e)}")
+    return FileResponse(path=filename, filename=filename, media_type="image/jpeg")
