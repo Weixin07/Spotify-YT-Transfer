@@ -1,18 +1,27 @@
 import logging
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
-from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
 import time
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse
+
 from googleapiclient.errors import HttpError
-from spotify_client import *
-from youtube_client import *
-from track_matcher import *
-from data_storage import *
-from check_missing import *
-import download_cover 
+from spotipy.oauth2 import SpotifyOAuth
+
+from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
+from spotify_client import SpotifyClient
+from youtube_client import YouTubeClient
+from data_storage import (
+    init_db,
+    get_matched_track,
+    save_matched_track,
+    get_failed_track,
+    record_failed_track,
+    clear_failed_track,
+)
+from track_matcher import match_track
+from check_missing import find_missing_tracks
+from download_cover import download_playlist_cover
 
 # Configure logging
 logging.basicConfig(
@@ -24,11 +33,24 @@ logging.basicConfig(
 async def lifespan(app: FastAPI):
     logging.info("Starting up: Initializing database.")
     init_db()
+    # instantiate singletons once
+    app.state.spotify = SpotifyClient()
+    app.state.youtube = YouTubeClient()
     yield
     logging.info("Shutting down: Cleanup if needed.")
 
 
 app = FastAPI(title="Spotify to YouTube Music Playlist Migrator", lifespan=lifespan)
+
+
+def get_spotify_client() -> SpotifyClient:
+    """Retrieve the singleton SpotifyClient from app state"""
+    return app.state.spotify
+
+
+def get_youtube_client() -> YouTubeClient:
+    """Retrieve the singleton YouTubeClient from app state"""
+    return app.state.youtube
 
 
 @app.get("/")
@@ -62,12 +84,12 @@ async def spotify_callback(request: Request):
 
 
 @app.get("/migrate")
-def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
-    logging.info(
-        f"Migration started for Spotify playlist: {spotify_playlist_id} into YouTube playlist: '{youtube_playlist_title}'."
-    )
-    spotify = SpotifyClient()
-    yt = YouTubeClient()
+def migrate_playlist(
+    spotify_playlist_id: str,
+    youtube_playlist_title: str,
+    spotify: SpotifyClient = Depends(get_spotify_client),
+    yt: YouTubeClient = Depends(get_youtube_client),
+):
 
     # 1. Get tracks from Spotify
     try:
@@ -219,6 +241,7 @@ def migrate_playlist(spotify_playlist_id: str, youtube_playlist_title: str):
     logging.info(f"Migration complete. YouTube playlist ID: {yt_playlist_id}")
     return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
 
+
 @app.get("/check_missing")
 def check_missing(spotify_playlist_id: str, youtube_playlist_id: str):
     """
@@ -228,20 +251,23 @@ def check_missing(spotify_playlist_id: str, youtube_playlist_id: str):
     missing_tracks = find_missing_tracks(spotify_playlist_id, youtube_playlist_id)
     return {"missing_tracks": missing_tracks}
 
+
 # Get YouTube Playlist ID by Playlist Name
 @app.get("/youtube/playlist")
-def get_youtube_playlist_id(playlist_name: str):
+def get_youtube_playlist_id(
+    playlist_name: str,
+    yt: YouTubeClient = Depends(get_youtube_client),
+):
     """
     Retrieves the YouTube playlist ID for a given playlist name from the user's account.
     If found, returns the playlist ID; otherwise, returns a not found message.
     """
-    yt = YouTubeClient()
     playlist_id = yt.find_playlist_by_name(playlist_name)
     if playlist_id:
         return {"playlist_name": playlist_name, "playlist_id": playlist_id}
     else:
         return {"message": f"Playlist '{playlist_name}' not found."}
-    
+
 
 # Download Spotify Playlist Cover
 @app.get("/download_cover")
@@ -251,7 +277,9 @@ def download_cover_endpoint(playlist_id: str, filename: str = "cover.jpg"):
     Downloads the image using download_cover.py and returns it as a downloadable file.
     """
     try:
-        download_cover.download_playlist_cover(playlist_id, save_path=filename)
+        download_playlist_cover(playlist_id, save_path=filename)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error downloading cover image: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error downloading cover image: {str(e)}"
+        )
     return FileResponse(path=filename, filename=filename, media_type="image/jpeg")
