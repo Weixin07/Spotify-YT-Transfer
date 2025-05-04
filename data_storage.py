@@ -138,7 +138,7 @@ def get_failed_track(spotify_id: str) -> tuple:
     if row:
         logging.info(f"Found failed track record: {row}")
     else:
-        logging.info("No failed track record found.")
+        logging.debug("No failed track record found.")
     return row
 
 
