@@ -5,6 +5,28 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from config import YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REDIRECT_URI
+import json
+from googleapiclient.errors import HttpError
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+    retry_if_exception,
+    before_sleep_log,
+)
+
+
+# Helper to detect quotaExceeded errors
+def _is_quota_exceeded(error: HttpError) -> bool:
+    try:
+        status = error.resp.status
+        body = error.content.decode()
+        payload = json.loads(body)
+        reason = payload.get("error", {}).get("errors", [{}])[0].get("reason", "")
+        return status == 403 and reason == "quotaExceeded"
+    except Exception:
+        return False
+
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
@@ -54,6 +76,14 @@ class YouTubeClient:
             logging.info("Using valid credentials from token.pickle.")
         return build("youtube", "v3", credentials=self.creds)
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_random_exponential(multiplier=1, max=10),
+        retry=retry_if_exception(
+            lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
+        ),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    )
     def find_playlist_by_name(self, playlist_name: str) -> str:
         """
         Checks if a playlist with the given name already exists in the user's account.
@@ -84,6 +114,13 @@ class YouTubeClient:
         logging.info("No matching playlist found.")
         return None
 
+
+    @retry(
+         stop=stop_after_attempt(3),
+         wait=wait_random_exponential(multiplier=1, max=10),
+         retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+     )
     def get_playlist_items(self, playlist_id: str) -> list:
         """
         Retrieves all video IDs currently in the specified playlist.
@@ -94,16 +131,14 @@ class YouTubeClient:
         video_ids = []
         page = 1
         while True:
-            response = (
-                self.service.playlistItems()
+            response = self.service.playlistItems() \
                 .list(
                     part="snippet",
                     playlistId=playlist_id,
                     maxResults=50,
                     pageToken=page_token,
-                )
+                ) \
                 .execute()
-            )
             items = response.get("items", [])
             logging.info(f"Page {page}: Retrieved {len(items)} items.")
             for idx, item in enumerate(items, start=1):
@@ -118,6 +153,14 @@ class YouTubeClient:
         logging.info(f"Total videos retrieved: {len(video_ids)}")
         return video_ids
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_random_exponential(multiplier=1, max=10),
+        retry=retry_if_exception(
+            lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
+        ),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    )
     def search_video(self, query: str):
         logging.info(
             f"Searching YouTube for query: '{query}' with one-by-one candidate evaluation."
@@ -181,6 +224,14 @@ class YouTubeClient:
                 break
         return None
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_random_exponential(multiplier=1, max=10),
+        retry=retry_if_exception(
+            lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
+        ),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    )
     def create_playlist(self, title: str, description: str = ""):
         logging.info(
             f"Creating YouTube playlist: '{title}' with description: '{description}'"
@@ -197,6 +248,14 @@ class YouTubeClient:
         logging.info(f"Playlist created with ID: {playlist_id}")
         return playlist_id
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_random_exponential(multiplier=1, max=10),
+        retry=retry_if_exception(
+            lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
+        ),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    )
     def add_video_to_playlist(self, playlist_id: str, video_id: str):
         logging.info(f"Adding video ID: {video_id} to playlist ID: {playlist_id}")
         request = self.service.playlistItems().insert(

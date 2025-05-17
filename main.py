@@ -245,45 +245,29 @@ async def migrate_playlist(
 
         # Attempt to add the video with retries
         if video_id:
-            retries = 0
-            max_retries = 3
-            added = False
-
-            while retries < max_retries:
-                try:
-                    await run_in_threadpool(
-                        yt.add_video_to_playlist,
-                        playlist_id=yt_playlist_id,
-                        video_id=video_id,
+            try:
+                await run_in_threadpool(
+                    yt.add_video_to_playlist,
+                    playlist_id=yt_playlist_id,
+                    video_id=video_id,
+                )
+                logger.info(f"Added {video_id} for {track['name']}")
+            except HttpError as e:
+                if is_quota_exceeded(e):
+                    logger.error("Max quota reached. Stopping migration now.")
+                    raise HTTPException(
+                        status_code=429,
+                        detail=(
+                            f"YouTube API quota exceeded at track {idx}/{len(tracks)} "
+                            f"('{track['name']}')—migration aborted."
+                        ),
                     )
-                    logger.info(f"Added {video_id} for {track['name']}")
-                    added = True
-                    break
-
-                except HttpError as e:
-                    if is_quota_exceeded(e):
-                        logger.error("Max quota reached. Stopping migration now.")
-                        # immediately abort the whole migration
-                        raise HTTPException(
-                            status_code=429,
-                            detail=(
-                                f"YouTube API quota exceeded at track {idx}/{len(tracks)} "
-                                f"('{track['name']}')—migration aborted."
-                            ),
-                        )
-
-                    retries += 1
-                    logger.warning(f"Retry {retries} for {video_id} failed: {e}")
-                    await run_in_threadpool(time.sleep, 2**retries)
-
-                except Exception as ex:
-                    logger.exception(
-                        f"Unexpected error adding {video_id}, aborting this track"
-                    )
-                    break
-
-            if not added:
+                logger.error(f"Failed to add video {video_id} after retries: {e}")
                 failed_attempts.append((spotify_unique_id, video_id, "add_failed"))
+            except Exception as ex:
+                logger.exception(
+                    f"Unexpected error adding {video_id}, aborting this track"
+                )
 
     # 4. Record and retry failures
     for spotify_id, yid, reason in failed_attempts:

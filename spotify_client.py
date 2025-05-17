@@ -1,6 +1,14 @@
 import logging
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
+from spotipy.client import SpotifyException
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
 from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
 
 # Configure logging to display info-level messages with a timestamp.
@@ -22,6 +30,12 @@ class SpotifyClient:
         )
         logging.info("Spotify client initialized successfully.")
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_random_exponential(multiplier=1, max=10),
+        retry=retry_if_exception_type(SpotifyException),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    )
     def get_playlist_tracks(self, playlist_id: str):
         logging.info(f"Retrieving tracks for Spotify playlist ID: {playlist_id}")
         results = self.sp.playlist_items(playlist_id)
