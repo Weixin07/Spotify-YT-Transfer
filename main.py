@@ -25,6 +25,14 @@ from data_storage import (
 from track_matcher import match_track
 from check_missing import find_missing_tracks
 from download_cover import download_playlist_cover
+from schemas import (
+    MigrateParams,
+    MigrateResponse,
+    CheckMissingParams,
+    CheckMissingResponse,
+    YouTubePlaylistParams,
+    YouTubePlaylistResponse,
+)
 
 # centralized logging config
 dictConfig(
@@ -129,13 +137,15 @@ def is_quota_exceeded(e: HttpError) -> bool:
         return False
 
 
-@app.get("/migrate")
+@app.get("/migrate", response_model=MigrateResponse)
 async def migrate_playlist(
-    spotify_playlist_id: str,
-    youtube_playlist_title: str,
+    params: MigrateParams = Depends(),
     spotify: SpotifyClient = Depends(get_spotify_client),
     yt: YouTubeClient = Depends(get_youtube_client),
 ):
+    spotify_playlist_id = params.spotify_playlist_id
+    youtube_playlist_title = params.youtube_playlist_title
+
     quota_exceeded = False
 
     # 1. Get tracks from Spotify
@@ -297,34 +307,38 @@ async def migrate_playlist(
     return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
 
 
-@app.get("/check_missing")
-async def check_missing(spotify_playlist_id: str, youtube_playlist_id: str):
+@app.get("/check_missing", response_model=CheckMissingResponse)
+async def check_missing(params: CheckMissingParams = Depends()):
     """
     Endpoint to compare a Spotify playlist with a YouTube playlist.
     Returns a list of missing tracks with their details.
     """
-    missing_tracks = await run_in_threadpool(
+    spotify_playlist_id = params.spotify_playlist_id
+    youtube_playlist_id = params.youtube_playlist_id
+    return await run_in_threadpool(
         find_missing_tracks, spotify_playlist_id, youtube_playlist_id
     )
-    return {"missing_tracks": missing_tracks}
 
 
 # Get YouTube Playlist ID by Playlist Name
-@app.get("/youtube/playlist")
+@app.get("/youtube/playlist", response_model=YouTubePlaylistResponse)
 async def get_youtube_playlist_id(
-    playlist_name: str,
+    params: YouTubePlaylistParams = Depends(),
     yt: YouTubeClient = Depends(get_youtube_client),
 ):
     """
     Retrieves the YouTube playlist ID for a given playlist name from the user's account.
     If found, returns the playlist ID; otherwise, returns a not found message.
     """
+    playlist_name = params.playlist_name
     playlist_id = await run_in_threadpool(yt.find_playlist_by_name, playlist_name)
-
     if playlist_id:
         return {"playlist_name": playlist_name, "playlist_id": playlist_id}
     else:
-        return {"message": f"Playlist '{playlist_name}' not found."}
+        raise HTTPException(
+            status_code=404,
+            detail=f"Playlist '{playlist_name}' not found."
+        )
 
 
 # Download Spotify Playlist Cover
