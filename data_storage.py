@@ -1,52 +1,21 @@
-import sqlite3
 import os
 import logging
+from config import SessionLocal, engine, Base
+from models import MatchedTrack, FailedTrack
 
 # Set up logging to print progress messages with a timestamp and level.
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
 
-DB_DIRECTORY = os.path.join("data", "matched_tracks.db")
-
-
 def init_db():
     """
     Create the 'matched_tracks' and 'failed_tracks' tables if they do not exist.
     """
-    logging.info("Initializing database: Creating tables if they do not exist.")
-    conn = sqlite3.connect(DB_DIRECTORY)
-    cur = conn.cursor()
-
-    # Updated matched_tracks table to store full metadata.
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS matched_tracks (
-            spotify_id TEXT PRIMARY KEY,
-            song_name TEXT,
-            artist TEXT,
-            album TEXT,
-            youtube_id TEXT
-        )
-        """
-    )
-    logging.info("Table 'matched_tracks' ensured with metadata columns.")
-
-    # Failed tracks table remains unchanged.
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS failed_tracks (
-            spotify_id TEXT PRIMARY KEY,
-            youtube_id TEXT,
-            reason TEXT
-        )
-        """
-    )
-    logging.info("Table 'failed_tracks' ensured.")
-
-    conn.commit()
-    conn.close()
-    logging.info("Database initialization complete.")
+    logging.info("Initializing database via ORM models.")
+    # creates both matched_tracks & failed_tracks tables
+    Base.metadata.create_all(bind=engine)
+    logging.info("Database tables ensured via SQLAlchemy.")
 
 
 def get_matched_track(spotify_id: str) -> dict:
@@ -56,23 +25,18 @@ def get_matched_track(spotify_id: str) -> dict:
     Returns None if no record exists.
     """
     logging.info(f"Retrieving full match record for Spotify ID: {spotify_id}")
-    conn = sqlite3.connect(DB_DIRECTORY)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT spotify_id, song_name, artist, album, youtube_id FROM matched_tracks WHERE spotify_id = ?",
-        (spotify_id,),
-    )
-    row = cur.fetchone()
-    conn.close()
-    if row:
-        logging.info(f"Found matched record: {row}")
+    with SessionLocal() as session:
+        obj = session.query(MatchedTrack).get(spotify_id)
+    if obj:
+        logging.info(f"Found matched record: {obj}")
         return {
-            "spotify_id": row[0],
-            "song_name": row[1],
-            "artist": row[2],
-            "album": row[3],
-            "youtube_id": row[4],
+            "spotify_id": obj.spotify_id,
+            "song_name": obj.song_name,
+            "artist": obj.artist,
+            "album": obj.album,
+            "youtube_id": obj.youtube_id,
         }
+
     logging.info("No matched record found.")
     return None
 
@@ -86,17 +50,17 @@ def save_matched_track(
     logging.info(
         f"Saving matched track: Spotify ID = {spotify_id}, YouTube ID = {youtube_id}, Song Name = {song_name}, Artist = {artist}, Album = {album}"
     )
-    conn = sqlite3.connect(DB_DIRECTORY)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT OR REPLACE INTO matched_tracks (spotify_id, song_name, artist, album, youtube_id)
-        VALUES (?, ?, ?, ?, ?)
-        """,
-        (spotify_id, song_name, artist, album, youtube_id),
-    )
-    conn.commit()
-    conn.close()
+    with SessionLocal() as session:
+        obj = MatchedTrack(
+            spotify_id=spotify_id,
+            song_name=song_name,
+            artist=artist,
+            album=album,
+            youtube_id=youtube_id,
+        )
+        session.merge(obj)
+        session.commit()
+
     logging.info("Matched track saved successfully.")
 
 
@@ -107,17 +71,15 @@ def record_failed_track(spotify_id: str, youtube_id: str, reason: str):
     logging.info(
         f"Recording failed track: Spotify ID = {spotify_id}, YouTube ID = {youtube_id}, Reason = {reason}"
     )
-    conn = sqlite3.connect(DB_DIRECTORY)
-    cur = conn.cursor()
-    cur.execute(
-        """
-        INSERT OR REPLACE INTO failed_tracks (spotify_id, youtube_id, reason)
-        VALUES (?, ?, ?)
-        """,
-        (spotify_id, youtube_id, reason),
-    )
-    conn.commit()
-    conn.close()
+    with SessionLocal() as session:
+        obj = FailedTrack(
+            spotify_id=spotify_id,
+            youtube_id=youtube_id,
+            reason=reason,
+        )
+        session.merge(obj)
+        session.commit()
+
     logging.info("Failed track recorded successfully.")
 
 
@@ -127,34 +89,24 @@ def get_failed_track(spotify_id: str) -> tuple:
     Returns a tuple (spotify_id, youtube_id, reason) if found, otherwise None.
     """
     logging.info(f"Retrieving failed track record for Spotify ID: {spotify_id}")
-    conn = sqlite3.connect(DB_DIRECTORY)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT spotify_id, youtube_id, reason FROM failed_tracks WHERE spotify_id=?",
-        (spotify_id,),
-    )
-    row = cur.fetchone()
-    conn.close()
-    if row:
-        logging.info(f"Found failed track record: {row}")
-    else:
-        logging.debug("No failed track record found.")
-    return row
+    with SessionLocal() as session:
+        obj = session.query(FailedTrack).get(spotify_id)
+    if obj:
+        return (obj.spotify_id, obj.youtube_id, obj.reason)
+    return obj
 
 
 def get_failed_tracks() -> list:
     """
     Retrieves all entries from the 'failed_tracks' table.
     Returns a list of tuples [(spotify_id, youtube_id, reason), ...].
-    """ 
+    """
     logging.info("Retrieving all failed tracks from database.")
-    conn = sqlite3.connect(DB_DIRECTORY)
-    cur = conn.cursor()
-    cur.execute("SELECT spotify_id, youtube_id, reason FROM failed_tracks")
-    rows = cur.fetchall()
-    conn.close()
+    with SessionLocal() as session:
+        rows = session.query(FailedTrack).all()
+    # convert ORM objects to tuples
     logging.info(f"Retrieved {len(rows)} failed track(s) from database.")
-    return rows
+    return [(f.spotify_id, f.youtube_id, f.reason) for f in rows]
 
 
 def clear_failed_track(spotify_id: str):
@@ -162,9 +114,9 @@ def clear_failed_track(spotify_id: str):
     Removes a specific track from 'failed_tracks' if successfully retried.
     """
     logging.info(f"Clearing failed track record for Spotify ID: {spotify_id}")
-    conn = sqlite3.connect(DB_DIRECTORY)
-    cur = conn.cursor()
-    cur.execute("DELETE FROM failed_tracks WHERE spotify_id=?", (spotify_id,))
-    conn.commit()
-    conn.close()
-    logging.info("Failed track record cleared.")
+    with SessionLocal() as session:
+        obj = session.query(FailedTrack).get(spotify_id)
+        if obj:
+            session.delete(obj)
+            session.commit()
+            logging.info("Failed track record cleared.")

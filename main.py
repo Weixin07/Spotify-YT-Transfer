@@ -11,7 +11,7 @@ from fastapi.concurrency import run_in_threadpool
 from googleapiclient.errors import HttpError
 from spotipy.oauth2 import SpotifyOAuth
 
-from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
+from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, engine, Base
 from spotify_client import SpotifyClient
 from youtube_client import YouTubeClient
 from data_storage import (
@@ -33,6 +33,9 @@ from schemas import (
     YouTubePlaylistParams,
     YouTubePlaylistResponse,
 )
+import models    # just to register classes
+
+Base.metadata.create_all(bind=engine)
 
 # centralized logging config
 dictConfig(
