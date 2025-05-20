@@ -9,7 +9,7 @@ from tenacity import (
     retry_if_exception_type,
     before_sleep_log,
 )
-from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
+from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, SPOTIFY_RETRY_ATTEMPTS, SPOTIFY_RETRY_MULTIPLIER, SPOTIFY_RETRY_MAX
 
 # Configure logging to display info-level messages with a timestamp.
 logging.basicConfig(
@@ -31,8 +31,11 @@ class SpotifyClient:
         logging.info("Spotify client initialized successfully.")
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_random_exponential(multiplier=1, max=10),
+        stop=stop_after_attempt(SPOTIFY_RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=SPOTIFY_RETRY_MULTIPLIER,
+            max=SPOTIFY_RETRY_MAX
+        ),
         retry=retry_if_exception_type(SpotifyException),
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )

@@ -14,6 +14,7 @@ from tenacity import (
     retry_if_exception,
     before_sleep_log,
 )
+from config import YOUTUBE_RETRY_ATTEMPTS, YOUTUBE_RETRY_MULTIPLIER, YOUTUBE_RETRY_MAX
 
 
 # Helper to detect quotaExceeded errors
@@ -77,8 +78,10 @@ class YouTubeClient:
         return build("youtube", "v3", credentials=self.creds)
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_random_exponential(multiplier=1, max=10),
+        stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=YOUTUBE_RETRY_MULTIPLIER, max=YOUTUBE_RETRY_MAX
+        ),
         retry=retry_if_exception(
             lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
         ),
@@ -114,13 +117,16 @@ class YouTubeClient:
         logging.info("No matching playlist found.")
         return None
 
-
     @retry(
-         stop=stop_after_attempt(3),
-         wait=wait_random_exponential(multiplier=1, max=10),
-         retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
-         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
-     )
+        stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=YOUTUBE_RETRY_MULTIPLIER, max=YOUTUBE_RETRY_MAX
+        ),
+        retry=retry_if_exception(
+            lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
+        ),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    )
     def get_playlist_items(self, playlist_id: str) -> list:
         """
         Retrieves all video IDs currently in the specified playlist.
@@ -131,14 +137,16 @@ class YouTubeClient:
         video_ids = []
         page = 1
         while True:
-            response = self.service.playlistItems() \
+            response = (
+                self.service.playlistItems()
                 .list(
                     part="snippet",
                     playlistId=playlist_id,
                     maxResults=50,
                     pageToken=page_token,
-                ) \
+                )
                 .execute()
+            )
             items = response.get("items", [])
             logging.info(f"Page {page}: Retrieved {len(items)} items.")
             for idx, item in enumerate(items, start=1):
@@ -154,8 +162,10 @@ class YouTubeClient:
         return video_ids
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_random_exponential(multiplier=1, max=10),
+        stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=YOUTUBE_RETRY_MULTIPLIER, max=YOUTUBE_RETRY_MAX
+        ),
         retry=retry_if_exception(
             lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
         ),
@@ -225,8 +235,10 @@ class YouTubeClient:
         return None
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_random_exponential(multiplier=1, max=10),
+        stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=YOUTUBE_RETRY_MULTIPLIER, max=YOUTUBE_RETRY_MAX
+        ),
         retry=retry_if_exception(
             lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
         ),
@@ -249,8 +261,10 @@ class YouTubeClient:
         return playlist_id
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_random_exponential(multiplier=1, max=10),
+        stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=YOUTUBE_RETRY_MULTIPLIER, max=YOUTUBE_RETRY_MAX
+        ),
         retry=retry_if_exception(
             lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)
         ),

@@ -1,4 +1,5 @@
 from rapidfuzz import fuzz, process
+from config import MATCH_FUZZ_THRESHOLD
 
 
 def match_track(spotify_track: dict, youtube_candidates: list) -> str:
@@ -14,6 +15,6 @@ def match_track(spotify_track: dict, youtube_candidates: list) -> str:
         {vid: title for vid, title in youtube_candidates}.items(),
         scorer=fuzz.token_sort_ratio,
     )
-    if best_match and best_match[1] > 70:  # Threshold can be adjusted based on testing
+    if best_match and best_match[1] > MATCH_FUZZ_THRESHOLD:
         return best_match[0][0]
     return None

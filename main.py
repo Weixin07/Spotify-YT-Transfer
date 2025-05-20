@@ -34,6 +34,7 @@ from schemas import (
     YouTubePlaylistResponse,
 )
 import models    # just to register classes
+from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, engine, Base, LOG_FILE_NAME, LOG_MAX_BYTES, LOG_BACKUP_COUNT
 
 Base.metadata.create_all(bind=engine)
 
@@ -53,9 +54,9 @@ dictConfig(
             "file": {
                 "class": "logging.handlers.RotatingFileHandler",
                 "formatter": "default",
-                "filename": "migration.log",
-                "maxBytes": 10 * 1024 * 1024,
-                "backupCount": 5,
+                "filename": LOG_FILE_NAME,
+                "maxBytes": LOG_MAX_BYTES,
+                "backupCount": LOG_BACKUP_COUNT,
                 "level": "INFO",
             },
         },

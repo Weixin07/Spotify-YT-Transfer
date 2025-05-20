@@ -6,6 +6,12 @@ from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_UR
 import logging
 from PIL import Image, ImageOps
 from io import BytesIO
+from config import (
+    COVER_MIN_WIDTH,
+    COVER_MIN_HEIGHT,
+    COVER_ENHANCE_SIZE,
+    HTTP_REQUEST_TIMEOUT,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -16,8 +22,8 @@ logging.basicConfig(
 def download_playlist_cover(
     playlist_id: str,
     save_path: str = "cover.jpg",
-    min_width: int = 640,
-    min_height: int = 480,
+    min_width: int = COVER_MIN_WIDTH,
+    min_height: int = COVER_MIN_HEIGHT,
 ):
     """
     Downloads the cover image of a Spotify playlist that meets the minimum resolution criteria.
@@ -59,7 +65,8 @@ def download_playlist_cover(
                 f"Selected image with resolution {chosen_image.get('width')}x{chosen_image.get('height')} meeting requirements."
             )
             image_url = chosen_image["url"]
-            response = requests.get(image_url)
+            response = requests.get(image_url, timeout=HTTP_REQUEST_TIMEOUT)
+
             if response.status_code == 200:
                 with open(save_path, "wb") as f:
                     f.write(response.content)
@@ -77,13 +84,16 @@ def download_playlist_cover(
                 f"No image met the minimum resolution. Using largest available image with resolution {chosen_image.get('width')}x{chosen_image.get('height')}."
             )
             image_url = chosen_image["url"]
-            response = requests.get(image_url)
+            response = requests.get(image_url, timeout=HTTP_REQUEST_TIMEOUT)
+
             if response.status_code == 200:
                 # Open the downloaded image with Pillow
                 original_image = Image.open(BytesIO(response.content))
                 # Enlarge (and center-crop) the image to 640x640 while preserving aspect ratio.
                 enhanced_image = ImageOps.fit(
-                    original_image, (640, 640), method=Image.BICUBIC
+                    original_image,
+                    (COVER_ENHANCE_SIZE, COVER_ENHANCE_SIZE),
+                    method=Image.BICUBIC,
                 )
                 enhanced_image.save(save_path)
                 logging.info(f"Enhanced cover image saved to {save_path}")
