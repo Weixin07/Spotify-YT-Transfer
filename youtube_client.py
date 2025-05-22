@@ -7,6 +7,7 @@ from googleapiclient.discovery import build
 from config import YOUTUBE_CLIENT_ID, YOUTUBE_CLIENT_SECRET, YOUTUBE_REDIRECT_URI
 import json
 from googleapiclient.errors import HttpError
+from cachetools import TTLCache, cached
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -36,6 +37,9 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
 )
+
+# 15 min TTL cache for search_video (max 1000 entries)
+_youtube_search_cache = TTLCache(maxsize=1000, ttl=15 * 60)
 
 
 class YouTubeClient:
@@ -77,6 +81,9 @@ class YouTubeClient:
             logging.info("Using valid credentials from token.pickle.")
         return build("youtube", "v3", credentials=self.creds)
 
+
+
+    @cached(cache=_youtube_search_cache, key=lambda self, query: query)
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
@@ -117,6 +124,9 @@ class YouTubeClient:
         logging.info("No matching playlist found.")
         return None
 
+
+
+    @cached(cache=_youtube_search_cache, key=lambda self, query: query)
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
@@ -161,6 +171,9 @@ class YouTubeClient:
         logging.info(f"Total videos retrieved: {len(video_ids)}")
         return video_ids
 
+
+
+    @cached(cache=_youtube_search_cache, key=lambda self, query: query)
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
@@ -234,6 +247,8 @@ class YouTubeClient:
                 break
         return None
 
+
+
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
@@ -259,6 +274,8 @@ class YouTubeClient:
         playlist_id = response.get("id")
         logging.info(f"Playlist created with ID: {playlist_id}")
         return playlist_id
+
+
 
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),

@@ -10,7 +10,10 @@ from fastapi.concurrency import run_in_threadpool
 
 from googleapiclient.errors import HttpError
 from spotipy.oauth2 import SpotifyOAuth
-
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.middleware import SlowAPIMiddleware
+from slowapi.errors import RateLimitExceeded
 from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, engine, Base
 from spotify_client import SpotifyClient
 from youtube_client import YouTubeClient
@@ -83,7 +86,11 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Spotify to YouTube Music Playlist Migrator", lifespan=lifespan)
-
+# Rate limiting: 10 requests per minute per IP
+limiter = Limiter(key_func=get_remote_address, default_limits=["10/minute"])
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 def get_spotify_client() -> SpotifyClient:
     """Retrieve the singleton SpotifyClient from app state"""
