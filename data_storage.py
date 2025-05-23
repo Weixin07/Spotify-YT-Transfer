@@ -26,7 +26,7 @@ def get_matched_track(spotify_id: str) -> dict:
     """
     logging.info(f"Retrieving full match record for Spotify ID: {spotify_id}")
     with SessionLocal() as session:
-        obj = session.query(MatchedTrack).get(spotify_id)
+        obj = session.get(MatchedTrack, spotify_id)
     if obj:
         logging.info(f"Found matched record: {obj}")
         return {
@@ -90,7 +90,7 @@ def get_failed_track(spotify_id: str) -> tuple:
     """
     logging.info(f"Retrieving failed track record for Spotify ID: {spotify_id}")
     with SessionLocal() as session:
-        obj = session.query(FailedTrack).get(spotify_id)
+        obj = session.get(FailedTrack, spotify_id)
     if obj:
         return (obj.spotify_id, obj.youtube_id, obj.reason)
     return obj
@@ -115,7 +115,7 @@ def clear_failed_track(spotify_id: str):
     """
     logging.info(f"Clearing failed track record for Spotify ID: {spotify_id}")
     with SessionLocal() as session:
-        obj = session.query(FailedTrack).get(spotify_id)
+        obj = session.get(FailedTrack, spotify_id)
         if obj:
             session.delete(obj)
             session.commit()

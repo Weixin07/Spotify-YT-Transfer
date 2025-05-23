@@ -301,3 +301,9 @@ class YouTubeClient:
         response = request.execute()
         logging.info(f"Video {video_id} added to playlist {playlist_id} successfully.")
         return response
+
+
+# if __name__ == "__main__":
+#     # Regenerate the YouTube API credentials and save token.pickle
+#     client = YouTubeClient()
+#     print("New token.pickle generated successfully.")
