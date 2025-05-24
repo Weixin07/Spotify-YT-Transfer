@@ -1,10 +1,12 @@
+from fastapi import Query
 from pydantic import BaseModel, Field, constr, PositiveInt
 from typing import Optional, List
 
 
 class MigrateParams(BaseModel):
-    spotify_playlist_id: constr(min_length=1) = Field(
-        ..., description="Spotify playlist ID to migrate"
+    spotify_playlist_id: Optional[str] = Query(
+        None,
+        description="Spotify playlist ID to migrate. If omitted, will migrate Liked Songs instead.",
     )
     youtube_playlist_title: constr(min_length=1) = Field(
         ..., description="Title for the new YouTube playlist"

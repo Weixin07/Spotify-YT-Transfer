@@ -122,7 +122,7 @@ async def spotify_callback(request: Request):
             client_id=SPOTIFY_CLIENT_ID,
             client_secret=SPOTIFY_CLIENT_SECRET,
             redirect_uri=SPOTIFY_REDIRECT_URI,
-            scope="playlist-read-private",
+            scope="playlist-read-private user-library-read",
         )
         token_info = await run_in_threadpool(
             spotify_auth_manager.get_access_token, code
@@ -159,19 +159,24 @@ async def migrate_playlist(
 
     quota_exceeded = False
 
-    # 1. Get tracks from Spotify
+    # 1. Get tracks from Spotify (playlist or liked songs)
     try:
-        tracks = await run_in_threadpool(
-            spotify.get_playlist_tracks, spotify_playlist_id
-        )
-        logger.info(
-            f"Retrieved {len(tracks)} tracks from Spotify playlist {spotify_playlist_id}."
-        )
+        if spotify_playlist_id:
+            tracks = await run_in_threadpool(
+                spotify.get_playlist_tracks, spotify_playlist_id
+            )
+            logger.info(
+                f"Retrieved {len(tracks)} tracks from Spotify playlist {spotify_playlist_id}."
+            )
+        else:
+            tracks = await run_in_threadpool(spotify.get_liked_tracks)
+            logger.info(f"Retrieved {len(tracks)} liked songs from Spotify account.")
     except Exception as e:
-        logger.error(f"Error retrieving Spotify playlist: {e}")
+        logger.error(f"Error retrieving Spotify tracks: {e}")
         raise HTTPException(
-            status_code=400, detail=f"Error retrieving Spotify playlist: {str(e)}"
+            status_code=400, detail=f"Error retrieving Spotify tracks: {str(e)}"
         )
+
 
     # 2. Check if a playlist with this name already exists
     existing_playlist_id = await run_in_threadpool(

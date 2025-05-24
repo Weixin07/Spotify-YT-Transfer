@@ -25,7 +25,7 @@ class SpotifyClient:
                 client_id=SPOTIFY_CLIENT_ID,
                 client_secret=SPOTIFY_CLIENT_SECRET,
                 redirect_uri=SPOTIFY_REDIRECT_URI,
-                scope="playlist-read-private",
+                scope="playlist-read-private user-library-read",
             )
         )
         logging.info("Spotify client initialized successfully.")
@@ -69,4 +69,44 @@ class SpotifyClient:
             results = self.sp.next(results) if self.sp.next(results) else None
             page += 1
         logging.info(f"Total tracks retrieved: {len(tracks)}")
+        return tracks
+
+
+    @retry(
+        stop=stop_after_attempt(SPOTIFY_RETRY_ATTEMPTS),
+        wait=wait_random_exponential(
+            multiplier=SPOTIFY_RETRY_MULTIPLIER,
+            max=SPOTIFY_RETRY_MAX
+        ),
+        retry=retry_if_exception_type(SpotifyException),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+    )
+    def get_liked_tracks(self):
+        logging.info("Retrieving user's liked songs")
+        results = self.sp.current_user_saved_tracks()
+        tracks = []
+        page = 1
+        while results:
+            items = results.get("items", [])
+            logging.info(f"Processing liked songs page {page} with {len(items)} items.")
+            for idx, item in enumerate(items, start=1):
+                track = item.get("track", {})
+                if track:
+                    track_info = {
+                        "name": track.get("name"),
+                        "artist": ", ".join(a["name"] for a in track.get("artists", [])),
+                        "album": track.get("album", {}).get("name"),
+                        "duration_ms": track.get("duration_ms"),
+                    }
+                    tracks.append(track_info)
+                    logging.info(
+                        f"Added liked song {idx} on page {page}: '{track_info['name']}' by {track_info['artist']}."
+                    )
+                else:
+                    logging.warning(
+                        f"Item {idx} on liked songs page {page} has no track information."
+                    )
+            results = self.sp.next(results) if self.sp.next(results) else None
+            page += 1
+        logging.info(f"Total liked songs retrieved: {len(tracks)}")
         return tracks
