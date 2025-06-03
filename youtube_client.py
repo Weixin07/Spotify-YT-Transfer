@@ -73,7 +73,7 @@ class YouTubeClient:
                     },
                     SCOPES,
                 )
-                self.creds = flow.run_local_server(port=8001)
+                self.creds = flow.run_local_server(port=8002)
             with open("token.pickle", "wb") as token:
                 pickle.dump(self.creds, token)
             logging.info("New credentials saved to token.pickle.")
@@ -303,7 +303,7 @@ class YouTubeClient:
         return response
 
 
-# if __name__ == "__main__":
-#     # Regenerate the YouTube API credentials and save token.pickle
-#     client = YouTubeClient()
-#     print("New token.pickle generated successfully.")
+if __name__ == "__main__":
+    # Regenerate the YouTube API credentials and save token.pickle
+    client = YouTubeClient()
+    print("New token.pickle generated successfully.")
