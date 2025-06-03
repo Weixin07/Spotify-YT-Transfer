@@ -13,9 +13,7 @@ class DummyResp:
 @pytest.fixture(autouse=True)
 def stub_requests_and_spotipy(monkeypatch):
     # stub HTTP
-    monkeypatch.setattr(
-        "download_cover.requests.get", lambda url, timeout: DummyResp(b"img")
-    )
+    monkeypatch.setattr("download_cover.SpotifyOAuth", lambda *args, **kwargs: None)
 
     # stub SpotifyOAuth + Spotify
     class DummySP:
