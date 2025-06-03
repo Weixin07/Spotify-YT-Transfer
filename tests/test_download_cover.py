@@ -12,19 +12,22 @@ class DummyResp:
 
 @pytest.fixture(autouse=True)
 def stub_requests_and_spotipy(monkeypatch):
-    # stub HTTP
+    # stub HTTP GET so “u” won’t be treated as a real URL
+    monkeypatch.setattr(
+        "download_cover.requests.get", lambda url, timeout: DummyResp(b"img")
+    )
+
+    # stub out SpotifyOAuth so it won’t look for real credentials
     monkeypatch.setattr("download_cover.SpotifyOAuth", lambda *args, **kwargs: None)
 
-    # stub SpotifyOAuth + Spotify
+    # stub Spotify client
     class DummySP:
         def playlist(self, pid):
             return {"images": [{"width": 800, "height": 800, "url": "u"}]}
 
-    # avoid real OAuth flow
     monkeypatch.setattr(
         "download_cover.spotipy.Spotify", lambda *args, **kwargs: DummySP()
     )
-    # stub the actual client factory
 
 
 def test_download_cover(tmp_path):
