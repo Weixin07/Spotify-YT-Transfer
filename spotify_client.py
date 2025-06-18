@@ -9,7 +9,14 @@ from tenacity import (
     retry_if_exception_type,
     before_sleep_log,
 )
-from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, SPOTIFY_RETRY_ATTEMPTS, SPOTIFY_RETRY_MULTIPLIER, SPOTIFY_RETRY_MAX
+from config import (
+    SPOTIFY_CLIENT_ID,
+    SPOTIFY_CLIENT_SECRET,
+    SPOTIFY_REDIRECT_URI,
+    SPOTIFY_RETRY_ATTEMPTS,
+    SPOTIFY_RETRY_MULTIPLIER,
+    SPOTIFY_RETRY_MAX,
+)
 
 # Configure logging to display info-level messages with a timestamp.
 logging.basicConfig(
@@ -19,7 +26,13 @@ logging.basicConfig(
 
 class SpotifyClient:
     def __init__(self):
+        """Initialize the SpotifyClient with OAuth2 authentication.
+
+        Side Effects:
+            - Configures the Spotipy client with OAuth2 credentials.
+        """
         logging.info("Initializing SpotifyClient.")
+
         self.sp = spotipy.Spotify(
             auth_manager=SpotifyOAuth(
                 client_id=SPOTIFY_CLIENT_ID,
@@ -33,14 +46,25 @@ class SpotifyClient:
     @retry(
         stop=stop_after_attempt(SPOTIFY_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
-            multiplier=SPOTIFY_RETRY_MULTIPLIER,
-            max=SPOTIFY_RETRY_MAX
+            multiplier=SPOTIFY_RETRY_MULTIPLIER, max=SPOTIFY_RETRY_MAX
         ),
         retry=retry_if_exception_type(SpotifyException),
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )
-    def get_playlist_tracks(self, playlist_id: str):
+    def get_playlist_tracks(self, playlist_id: str) -> list:
+        """Retrieve all tracks from a Spotify playlist.
+
+        Args:
+            playlist_id (str): The Spotify playlist ID to fetch tracks from.
+
+        Returns:
+            list of dict: Each dict contains 'name', 'artist', 'album', 'duration_ms'.
+
+        Raises:
+            SpotifyException: If the Spotify API request fails.
+        """
         logging.info(f"Retrieving tracks for Spotify playlist ID: {playlist_id}")
+
         results = self.sp.playlist_items(playlist_id)
         tracks = []
         page = 1
@@ -71,18 +95,26 @@ class SpotifyClient:
         logging.info(f"Total tracks retrieved: {len(tracks)}")
         return tracks
 
-
     @retry(
         stop=stop_after_attempt(SPOTIFY_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
-            multiplier=SPOTIFY_RETRY_MULTIPLIER,
-            max=SPOTIFY_RETRY_MAX
+            multiplier=SPOTIFY_RETRY_MULTIPLIER, max=SPOTIFY_RETRY_MAX
         ),
         retry=retry_if_exception_type(SpotifyException),
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )
-    def get_liked_tracks(self):
+    def get_liked_tracks(self) -> list:
+        """Retrieve all of the user's saved (liked) Spotify tracks.
+
+        Returns:
+            list of dict: Each dict contains 'name', 'artist', 'album', 'duration_ms'.
+
+        Raises:
+            SpotifyException: If the Spotify API request fails.
+        """
         logging.info("Retrieving user's liked songs")
+        ...
+
         results = self.sp.current_user_saved_tracks()
         tracks = []
         page = 1
@@ -94,7 +126,9 @@ class SpotifyClient:
                 if track:
                     track_info = {
                         "name": track.get("name"),
-                        "artist": ", ".join(a["name"] for a in track.get("artists", [])),
+                        "artist": ", ".join(
+                            a["name"] for a in track.get("artists", [])
+                        ),
                         "album": track.get("album", {}).get("name"),
                         "duration_ms": track.get("duration_ms"),
                     }

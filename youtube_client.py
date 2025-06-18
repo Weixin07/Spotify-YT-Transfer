@@ -20,6 +20,14 @@ from config import YOUTUBE_RETRY_ATTEMPTS, YOUTUBE_RETRY_MULTIPLIER, YOUTUBE_RET
 
 # Helper to detect quotaExceeded errors
 def _is_quota_exceeded(error: HttpError) -> bool:
+    """Determine if the HttpError is due to YouTube API quota exhaustion.
+
+    Args:
+        error (HttpError): Exception raised by the YouTube API client.
+
+    Returns:
+        bool: True if the error reason equals 'quotaExceeded', False otherwise.
+    """
     try:
         status = error.resp.status
         body = error.content.decode()
@@ -44,13 +52,29 @@ _youtube_search_cache = TTLCache(maxsize=1000, ttl=15 * 60)
 
 class YouTubeClient:
     def __init__(self):
+        """Initialize the YouTubeClient by authenticating and configuring the service.
+
+        Side Effects:
+            - Performs OAuth2 flow or loads existing credentials.
+            - Builds the YouTube Data API client.
+        """
         logging.info("Initializing YouTubeClient.")
+
         self.creds = None
         self.service = self.authenticate()
         logging.info("YouTubeClient initialized successfully.")
 
     def authenticate(self):
+        """Authenticate with the YouTube API, refreshing or generating credentials as needed.
+
+        Returns:
+            Resource: Authorized YouTube API client resource.
+
+        Side Effects:
+            - Writes new credentials to 'token.pickle' if generated.
+        """
         logging.info("Authenticating with YouTube API.")
+
         if os.path.exists("token.pickle"):
             logging.info("Found existing token.pickle. Loading credentials.")
             with open("token.pickle", "rb") as token:
@@ -80,8 +104,6 @@ class YouTubeClient:
         else:
             logging.info("Using valid credentials from token.pickle.")
         return build("youtube", "v3", credentials=self.creds)
-
-
 
     @cached(cache=_youtube_search_cache, key=lambda self, query: query)
     @retry(
@@ -123,8 +145,6 @@ class YouTubeClient:
             page += 1
         logging.info("No matching playlist found.")
         return None
-
-
 
     @cached(cache=_youtube_search_cache, key=lambda self, query: query)
     @retry(
@@ -171,8 +191,6 @@ class YouTubeClient:
         logging.info(f"Total videos retrieved: {len(video_ids)}")
         return video_ids
 
-
-
     @cached(cache=_youtube_search_cache, key=lambda self, query: query)
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
@@ -185,9 +203,18 @@ class YouTubeClient:
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )
     def search_video(self, query: str):
+        """Search YouTube for the best matching music video for the given query.
+
+        Args:
+            query (str): Combined track name and artist string.
+
+        Returns:
+            Optional[str]: Video ID of the best matching music video, or None if none found.
+        """
         logging.info(
             f"Searching YouTube for query: '{query}' with one-by-one candidate evaluation."
         )
+
         page_token = None
         # Loop until a candidate meeting the Music criteria is found, or no more results are available.
         while True:
@@ -247,8 +274,6 @@ class YouTubeClient:
                 break
         return None
 
-
-
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
@@ -259,7 +284,16 @@ class YouTubeClient:
         ),
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )
-    def create_playlist(self, title: str, description: str = ""):
+    def create_playlist(self, title: str, description: str = "") -> str:
+        """Create a new private YouTube playlist.
+
+        Args:
+            title (str): Title for the new playlist.
+            description (str): Optional description text.
+
+        Returns:
+            str: The newly created playlist ID.
+        """
         logging.info(
             f"Creating YouTube playlist: '{title}' with description: '{description}'"
         )
@@ -275,8 +309,6 @@ class YouTubeClient:
         logging.info(f"Playlist created with ID: {playlist_id}")
         return playlist_id
 
-
-
     @retry(
         stop=stop_after_attempt(YOUTUBE_RETRY_ATTEMPTS),
         wait=wait_random_exponential(
@@ -288,6 +320,15 @@ class YouTubeClient:
         before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
     )
     def add_video_to_playlist(self, playlist_id: str, video_id: str):
+        """Add a video to a specified YouTube playlist.
+
+        Args:
+            playlist_id (str): ID of the target playlist.
+            video_id (str): ID of the video to be added.
+
+        Returns:
+            dict: The API response for the insert operation.
+        """
         logging.info(f"Adding video ID: {video_id} to playlist ID: {playlist_id}")
         request = self.service.playlistItems().insert(
             part="snippet",

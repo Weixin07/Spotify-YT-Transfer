@@ -14,7 +14,13 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
-from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, engine, Base
+from config import (
+    SPOTIFY_CLIENT_ID,
+    SPOTIFY_CLIENT_SECRET,
+    SPOTIFY_REDIRECT_URI,
+    engine,
+    Base,
+)
 from spotify_client import SpotifyClient
 from youtube_client import YouTubeClient
 from data_storage import (
@@ -36,8 +42,17 @@ from schemas import (
     YouTubePlaylistParams,
     YouTubePlaylistResponse,
 )
-import models    # just to register classes
-from config import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, engine, Base, LOG_FILE_NAME, LOG_MAX_BYTES, LOG_BACKUP_COUNT
+import models  # just to register classes
+from config import (
+    SPOTIFY_CLIENT_ID,
+    SPOTIFY_CLIENT_SECRET,
+    SPOTIFY_REDIRECT_URI,
+    engine,
+    Base,
+    LOG_FILE_NAME,
+    LOG_MAX_BYTES,
+    LOG_BACKUP_COUNT,
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -76,40 +91,145 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Lifespan context manager for application startup and shutdown.
+
+    Args:
+        app (FastAPI): The FastAPI application instance.
+
+    Yields:
+        None: Control is yielded back to the application during runtime.
+
+    Side Effects:
+        - Initializes the database.
+        - Instantiates SpotifyClient and YouTubeClient singletons in `app.state`.
+        - Logs startup and shutdown events.
+    """
     logger.info("Starting up: Initializing database.")
     init_db()
-    # instantiate singletons once
     app.state.spotify = SpotifyClient()
     app.state.youtube = YouTubeClient()
     yield
     logger.info("Shutting down: Cleanup if needed.")
 
 
-app = FastAPI(title="Spotify to YouTube Music Playlist Migrator", lifespan=lifespan)
+# Define OpenAPI tags for grouping endpoints
+openapi_tags = [
+    {"name": "Info", "description": "General informational endpoints"},
+    {"name": "Auth", "description": "OAuth and authentication callbacks"},
+    {"name": "Migration", "description": "Playlist migration operations"},
+    {"name": "Utilities", "description": "Utility endpoints (e.g., cover download)"},
+]
+
+app = FastAPI(
+    title="Spotify to YouTube Music Playlist Migrator",
+    description="A utility service to migrate Spotify playlists into YouTube Music playlists, handling OAuth, track matching, and cover images.",
+    version="0.1.0",
+    contact={"name": "developer", "email": "faithlin07@gmail.com"},
+    license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
+    openapi_tags=openapi_tags,
+    lifespan=lifespan,
+    swagger_ui_parameters={"docExpansion": "none", "defaultModelsExpandDepth": -1},
+    redoc_ui_parameters={"hideHostname": True},
+)
+
+
 # Rate limiting: 10 requests per minute per IP
 limiter = Limiter(key_func=get_remote_address, default_limits=["10/minute"])
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+
 def get_spotify_client() -> SpotifyClient:
-    """Retrieve the singleton SpotifyClient from app state"""
+    """Retrieve the SpotifyClient singleton from the application state.
+
+    Returns:
+        SpotifyClient: The initialized SpotifyClient instance.
+    """
     return app.state.spotify
 
 
 def get_youtube_client() -> YouTubeClient:
-    """Retrieve the singleton YouTubeClient from app state"""
+    """Retrieve the YouTubeClient singleton from the application state.
+
+    Returns:
+        YouTubeClient: The initialized YouTubeClient instance.
+    """
     return app.state.youtube
 
 
-@app.get("/")
+@app.get(
+    "/",
+    tags=["Info"],
+    summary="Root endpoint",
+    description="Returns a welcome message to confirm the service is running.",
+    responses={
+        200: {
+            "description": "Service is up",
+            "content": {
+                "application/json": {
+                    "example": {"message": "Welcome to the Playlist Migrator API"}
+                }
+            },
+        }
+    },
+)
 def read_root():
+    """Root endpoint returning a welcome message.
+
+    Returns:
+        dict: A dictionary containing a welcome message.
+    """
     logger.info("Received request at root endpoint.")
     return {"message": "Welcome to the Playlist Migrator API"}
 
 
-@app.get("/spotify/callback")
+@app.get(
+    "/spotify/callback",
+    tags=["Auth"],
+    summary="Spotify OAuth2 callback",
+    description=(
+        "Handles Spotify OAuth2 callback by exchanging the provided "
+        "`code` query parameter for access tokens."
+    ),
+    responses={
+        400: {
+            "description": "Missing or invalid code parameter",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Missing code parameter in callback."}
+                }
+            },
+        },
+        200: {
+            "description": "Authentication successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Spotify authentication successful",
+                        "token_info": {
+                            "access_token": "BQD...xyz",
+                            "refresh_token": "AQD...abc",
+                            "...": "...",
+                        },
+                    }
+                }
+            },
+        },
+    },
+)
 async def spotify_callback(request: Request):
+    """Handle Spotify OAuth2 callback and exchange code for tokens.
+
+    Args:
+        request (Request): The incoming HTTP request containing query parameters.
+
+    Returns:
+        dict: A message indicating success and the Spotify token information.
+
+    Raises:
+        HTTPException: If the 'code' parameter is missing or exchange fails.
+    """
     code = request.query_params.get("code")
     if not code:
         logger.error("Spotify callback: Missing 'code' parameter.")
@@ -135,6 +255,14 @@ async def spotify_callback(request: Request):
 
 
 def is_quota_exceeded(e: HttpError) -> bool:
+    """Check if a Google API HttpError is due to quota exhaustion.
+
+    Args:
+        e (HttpError): The caught HttpError exception from Google API client.
+
+    Returns:
+        bool: True if the error reason is 'quotaExceeded', False otherwise.
+    """
     try:
         status = e.resp.status
         try:
@@ -148,12 +276,71 @@ def is_quota_exceeded(e: HttpError) -> bool:
         return False
 
 
-@app.get("/migrate", response_model=MigrateResponse)
+@app.get(
+    "/migrate",
+    response_model=MigrateResponse,
+    tags=["Migration"],
+    summary="Migrate Spotify playlist",
+    description=(
+        "Migrates a Spotify playlist (or liked songs if no playlist ID is given) "
+        "into a YouTube Music playlist."
+    ),
+    responses={
+        200: {
+            "description": "Migration completed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Migration complete",
+                        "youtube_playlist_id": "PL1234567890abcdef",
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "Invalid request or Spotify API error",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error retrieving Spotify tracks: ..."}
+                }
+            },
+        },
+        429: {
+            "description": "YouTube API quota exceeded",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "YouTube API quota exceeded—migration aborted."
+                    }
+                }
+            },
+        },
+    },
+)
 async def migrate_playlist(
     params: MigrateParams = Depends(),
     spotify: SpotifyClient = Depends(get_spotify_client),
     yt: YouTubeClient = Depends(get_youtube_client),
 ):
+    """Migrate a Spotify playlist to YouTube Music.
+
+    Given either a Spotify playlist ID or the user’s liked songs, this endpoint:
+    1. Retrieves tracks from Spotify.
+    2. Finds or creates a YouTube playlist.
+    3. Searches YouTube for each track and adds videos to the playlist.
+    4. Records failures and retries them.
+
+    Args:
+        params (MigrateParams): Migration parameters (Spotify playlist ID or liked songs, YouTube playlist title).
+        spotify (SpotifyClient): Spotify API client dependency.
+        yt (YouTubeClient): YouTube API client dependency.
+
+    Returns:
+        MigrateResponse: Contains migration status and resulting YouTube playlist ID.
+
+    Raises:
+        HTTPException: On API errors (e.g., retrieving tracks, quota exceeded, authentication issues).
+    """
     spotify_playlist_id = params.spotify_playlist_id
     youtube_playlist_title = params.youtube_playlist_title
 
@@ -176,7 +363,6 @@ async def migrate_playlist(
         raise HTTPException(
             status_code=400, detail=f"Error retrieving Spotify tracks: {str(e)}"
         )
-
 
     # 2. Check if a playlist with this name already exists
     existing_playlist_id = await run_in_threadpool(
@@ -323,7 +509,45 @@ async def migrate_playlist(
     return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
 
 
-@app.get("/check_missing", response_model=CheckMissingResponse)
+@app.get(
+    "/check_missing",
+    response_model=CheckMissingResponse,
+    tags=["Utilities"],
+    summary="Check missing tracks",
+    description=(
+        "Compares a Spotify playlist with a YouTube playlist and returns "
+        "tracks that are missing, duplicated, or unavailable."
+    ),
+    responses={
+        200: {
+            "description": "Missing/duplicate/unavailable tracks listed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "missing_tracks": [
+                            {
+                                "unique_id": "Song|Artist",
+                                "track_name": "Song",
+                                "artist": "Artist",
+                                "album": "Album",
+                                "cached_youtube_id": "abcd1234",
+                            }
+                        ],
+                        "duplicate_tracks": [{"unique_id": "Song|Artist", "count": 2}],
+                        "unavailable_tracks": [
+                            {
+                                "name": "Song",
+                                "artist": None,
+                                "album": None,
+                                "duration_ms": None,
+                            }
+                        ],
+                    }
+                }
+            },
+        }
+    },
+)
 async def check_missing(params: CheckMissingParams = Depends()):
     """
     Endpoint to compare a Spotify playlist with a YouTube playlist.
@@ -337,7 +561,34 @@ async def check_missing(params: CheckMissingParams = Depends()):
 
 
 # Get YouTube Playlist ID by Playlist Name
-@app.get("/youtube/playlist", response_model=YouTubePlaylistResponse)
+@app.get(
+    "/youtube/playlist",
+    response_model=YouTubePlaylistResponse,
+    tags=["Utilities"],
+    summary="Get YouTube playlist by name",
+    description=(
+        "Retrieves the YouTube playlist ID for a given playlist name in the user's account."
+    ),
+    responses={
+        200: {
+            "description": "Playlist found",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "playlist_name": "My Favourite Songs",
+                        "playlist_id": "PLabcdef123456",
+                    }
+                }
+            },
+        },
+        404: {
+            "description": "Playlist not found",
+            "content": {
+                "application/json": {"example": {"detail": "Playlist 'Foo' not found."}}
+            },
+        },
+    },
+)
 async def get_youtube_playlist_id(
     params: YouTubePlaylistParams = Depends(),
     yt: YouTubeClient = Depends(get_youtube_client),
@@ -352,18 +603,45 @@ async def get_youtube_playlist_id(
         return {"playlist_name": playlist_name, "playlist_id": playlist_id}
     else:
         raise HTTPException(
-            status_code=404,
-            detail=f"Playlist '{playlist_name}' not found."
+            status_code=404, detail=f"Playlist '{playlist_name}' not found."
         )
 
 
 # Download Spotify Playlist Cover
-@app.get("/download_cover")
+@app.get(
+    "/download_cover",
+    tags=["Utilities"],
+    summary="Download playlist cover",
+    description="Downloads a Spotify playlist’s cover image and returns it as a JPEG file.",
+    responses={
+        200: {
+            "description": "Cover image file returned",
+            "content": {"image/jpeg": {}},
+        },
+        500: {
+            "description": "Error during cover download",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error downloading cover image: ..."}
+                }
+            },
+        },
+    },
+)
 async def download_cover_endpoint(playlist_id: str, filename: str = "cover.jpg"):
+    """Download a Spotify playlist cover image and serve it as a JPEG file.
+
+    Args:
+        playlist_id (str): The Spotify playlist ID whose cover to download.
+        filename (str): Filename to save and return. Defaults to "cover.jpg".
+
+    Returns:
+        FileResponse: A FastAPI response with the image file.
+
+    Raises:
+        HTTPException: If downloading the cover image fails.
     """
-    Endpoint to download the Spotify playlist cover image.
-    Downloads the image using download_cover.py and returns it as a downloadable file.
-    """
+
     try:
         await run_in_threadpool(download_playlist_cover, playlist_id, filename)
     except Exception as e:
