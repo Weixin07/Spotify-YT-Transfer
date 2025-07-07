@@ -3,19 +3,17 @@ import logging
 from config import SessionLocal, engine, Base
 from models import MatchedTrack, FailedTrack
 
-# Set up logging to print progress messages with a timestamp and level.
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+# Use centralized logger.error; get module logger
+logger = logging.getLogger(__name__)
 
 def init_db():
     """
     Create the 'matched_tracks' and 'failed_tracks' tables if they do not exist.
     """
-    logging.info("Initializing database via ORM models.")
+    logger.info("Initializing database via ORM models.")
     # creates both matched_tracks & failed_tracks tables
     Base.metadata.create_all(bind=engine)
-    logging.info("Database tables ensured via SQLAlchemy.")
+    logger.info("Database tables ensured via SQLAlchemy.")
 
 
 def get_matched_track(spotify_id: str) -> dict:
@@ -24,11 +22,11 @@ def get_matched_track(spotify_id: str) -> dict:
     Returns a dict with keys: spotify_id, song_name, artist, album, youtube_id.
     Returns None if no record exists.
     """
-    logging.info(f"Retrieving full match record for Spotify ID: {spotify_id}")
+    logger.info(f"Retrieving full match record for Spotify ID: {spotify_id}")
     with SessionLocal() as session:
         obj = session.get(MatchedTrack, spotify_id)
     if obj:
-        logging.info(f"Found matched record: {obj}")
+        logger.info(f"Found matched record: {obj}")
         return {
             "spotify_id": obj.spotify_id,
             "song_name": obj.song_name,
@@ -37,7 +35,7 @@ def get_matched_track(spotify_id: str) -> dict:
             "youtube_id": obj.youtube_id,
         }
 
-    logging.info("No matched record found.")
+    logger.info("No matched record found.")
     return None
 
 
@@ -47,7 +45,7 @@ def save_matched_track(
     """
     Saves or updates the mapping of a Spotify track ID to its metadata and YouTube video ID.
     """
-    logging.info(
+    logger.info(
         f"Saving matched track: Spotify ID = {spotify_id}, YouTube ID = {youtube_id}, Song Name = {song_name}, Artist = {artist}, Album = {album}"
     )
     with SessionLocal() as session:
@@ -61,14 +59,14 @@ def save_matched_track(
         session.merge(obj)
         session.commit()
 
-    logging.info("Matched track saved successfully.")
+    logger.info("Matched track saved successfully.")
 
 
 def record_failed_track(spotify_id: str, youtube_id: str, reason: str):
     """
     Inserts or updates an entry in the 'failed_tracks' table with the reason for failure.
     """
-    logging.info(
+    logger.info(
         f"Recording failed track: Spotify ID = {spotify_id}, YouTube ID = {youtube_id}, Reason = {reason}"
     )
     with SessionLocal() as session:
@@ -80,7 +78,7 @@ def record_failed_track(spotify_id: str, youtube_id: str, reason: str):
         session.merge(obj)
         session.commit()
 
-    logging.info("Failed track recorded successfully.")
+    logger.info("Failed track recorded successfully.")
 
 
 def get_failed_track(spotify_id: str) -> tuple:
@@ -88,7 +86,7 @@ def get_failed_track(spotify_id: str) -> tuple:
     Retrieves a failed record for the given Spotify track ID from the 'failed_tracks' table.
     Returns a tuple (spotify_id, youtube_id, reason) if found, otherwise None.
     """
-    logging.info(f"Retrieving failed track record for Spotify ID: {spotify_id}")
+    logger.info(f"Retrieving failed track record for Spotify ID: {spotify_id}")
     with SessionLocal() as session:
         obj = session.get(FailedTrack, spotify_id)
     if obj:
@@ -101,11 +99,11 @@ def get_failed_tracks() -> list:
     Retrieves all entries from the 'failed_tracks' table.
     Returns a list of tuples [(spotify_id, youtube_id, reason), ...].
     """
-    logging.info("Retrieving all failed tracks from database.")
+    logger.info("Retrieving all failed tracks from database.")
     with SessionLocal() as session:
         rows = session.query(FailedTrack).all()
     # convert ORM objects to tuples
-    logging.info(f"Retrieved {len(rows)} failed track(s) from database.")
+    logger.info(f"Retrieved {len(rows)} failed track(s) from database.")
     return [(f.spotify_id, f.youtube_id, f.reason) for f in rows]
 
 
@@ -113,10 +111,10 @@ def clear_failed_track(spotify_id: str):
     """
     Removes a specific track from 'failed_tracks' if successfully retried.
     """
-    logging.info(f"Clearing failed track record for Spotify ID: {spotify_id}")
+    logger.info(f"Clearing failed track record for Spotify ID: {spotify_id}")
     with SessionLocal() as session:
         obj = session.get(FailedTrack, spotify_id)
         if obj:
             session.delete(obj)
             session.commit()
-            logging.info("Failed track record cleared.")
+            logger.info("Failed track record cleared.")

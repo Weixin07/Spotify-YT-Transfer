@@ -1,26 +1,21 @@
-import time, json, logging
+import os
+import json
+import logging
 from contextlib import asynccontextmanager
-
 from logging.config import dictConfig
-from logging.handlers import RotatingFileHandler
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse
 from fastapi.concurrency import run_in_threadpool
-
-from googleapiclient.errors import HttpError
-from spotipy.oauth2 import SpotifyOAuth
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.errors import RateLimitExceeded
-from config import (
-    SPOTIFY_CLIENT_ID,
-    SPOTIFY_CLIENT_SECRET,
-    SPOTIFY_REDIRECT_URI,
-    engine,
-    Base,
-)
+from googleapiclient.errors import HttpError
+from spotipy.oauth2 import SpotifyOAuth
+
+import config
+from config import engine, Base
 from spotify_client import SpotifyClient
 from youtube_client import YouTubeClient
 from data_storage import (
@@ -42,21 +37,26 @@ from schemas import (
     YouTubePlaylistParams,
     YouTubePlaylistResponse,
 )
-import models  # just to register classes
-from config import (
-    SPOTIFY_CLIENT_ID,
-    SPOTIFY_CLIENT_SECRET,
-    SPOTIFY_REDIRECT_URI,
-    engine,
-    Base,
-    LOG_FILE_NAME,
-    LOG_MAX_BYTES,
-    LOG_BACKUP_COUNT,
-)
+import models  # ensure ORM models are registered
 
+# --- Fail fast on missing credentials ---
+required = {
+    "SPOTIFY_CLIENT_ID": config.SPOTIFY_CONFIG.client_id,
+    "SPOTIFY_CLIENT_SECRET": config.SPOTIFY_CONFIG.client_secret,
+    "SPOTIFY_REDIRECT_URI": config.SPOTIFY_CONFIG.redirect_uri,
+    "YOUTUBE_CLIENT_ID": config.YOUTUBE_CONFIG.client_id,
+    "YOUTUBE_CLIENT_SECRET": config.YOUTUBE_CONFIG.client_secret,
+    "YOUTUBE_REDIRECT_URI": config.YOUTUBE_CONFIG.redirect_uri,
+}
+missing = [name for name, val in required.items() if not val]
+if missing:
+    raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+# ------------------------------------------
+
+# Create DB schema
 Base.metadata.create_all(bind=engine)
 
-# centralized logging config
+# Centralized logging configuration
 dictConfig(
     {
         "version": 1,
@@ -67,26 +67,62 @@ dictConfig(
             "console": {
                 "class": "logging.StreamHandler",
                 "formatter": "default",
-                "level": "INFO",
+                "level": "DEBUG" if config.DEBUG else "INFO",
             },
             "file": {
                 "class": "logging.handlers.RotatingFileHandler",
                 "formatter": "default",
-                "filename": LOG_FILE_NAME,
-                "maxBytes": LOG_MAX_BYTES,
-                "backupCount": LOG_BACKUP_COUNT,
-                "level": "INFO",
+                "filename": config.LOGGING_CONFIG.file_name,
+                "maxBytes": config.LOGGING_CONFIG.max_bytes,
+                "backupCount": config.LOGGING_CONFIG.backup_count,
+                "level": "DEBUG" if config.DEBUG else "INFO",
             },
         },
-        "root": {"level": "INFO", "handlers": ["console", "file"]},
-        "loggers": {
-            # suppress overly‐verbose libs
-            "googleapiclient": {"level": "WARNING"},
+        "root": {
+            "level": "DEBUG" if config.DEBUG else "INFO",
+            "handlers": ["console", "file"],
         },
+        "loggers": {"googleapiclient": {"level": "WARNING"}},
     }
 )
 
 logger = logging.getLogger(__name__)
+
+
+# Application lifespan
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Starting up: Initializing database.")
+    init_db()
+    app.state.spotify = SpotifyClient()
+    app.state.youtube = YouTubeClient()
+    yield
+    logger.info("Shutting down: Cleanup if needed.")
+
+
+# FastAPI app
+app = FastAPI(
+    title="Spotify to YouTube Music Playlist Migrator",
+    description="...",
+    version="0.1.0",
+    contact={"name": "developer", "email": "faithlin07@gmail.com"},
+    license_info={"name": "MIT"},
+    openapi_tags=[
+        {"name": "Info", "description": "General informational endpoints"},
+        {"name": "Auth", "description": "OAuth and authentication callbacks"},
+        {"name": "Migration", "description": "Playlist migration operations"},
+        {"name": "Utilities", "description": "Utility endpoints"},
+    ],
+    lifespan=lifespan,
+    swagger_ui_parameters={"docExpansion": "none", "defaultModelsExpandDepth": -1},
+    redoc_ui_parameters={"hideHostname": True},
+)
+
+# Rate limiting
+limiter = Limiter(key_func=get_remote_address, default_limits=["10/minute"])
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @asynccontextmanager

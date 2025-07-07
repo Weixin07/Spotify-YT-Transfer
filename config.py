@@ -1,26 +1,14 @@
 import os
 from dotenv import load_dotenv
-
-# SQLAlchemy setup for same SQLite file
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+from dataclasses import dataclass
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Spotify Configurations
-SPOTIFY_CLIENT_ID = os.getenv("SPOTIFY_CLIENT_ID")
-SPOTIFY_CLIENT_SECRET = os.getenv("SPOTIFY_CLIENT_SECRET")
-SPOTIFY_REDIRECT_URI = os.getenv("SPOTIFY_REDIRECT_URI")
-
-# YouTube Configurations
-YOUTUBE_CLIENT_ID = os.getenv("YOUTUBE_CLIENT_ID")
-YOUTUBE_CLIENT_SECRET = os.getenv("YOUTUBE_CLIENT_SECRET")
-YOUTUBE_REDIRECT_URI = os.getenv("YOUTUBE_REDIRECT_URI")
-
+# DEBUG flag
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
 
-# Retry settings (centralize magic numbers)
+# Retry settings
 SPOTIFY_RETRY_ATTEMPTS = int(os.getenv("SPOTIFY_RETRY_ATTEMPTS", "3"))
 SPOTIFY_RETRY_MULTIPLIER = float(os.getenv("SPOTIFY_RETRY_MULTIPLIER", "1"))
 SPOTIFY_RETRY_MAX = int(os.getenv("SPOTIFY_RETRY_MAX", "10"))
@@ -43,22 +31,89 @@ LOG_FILE_NAME = os.getenv("LOG_FILE_NAME", "migration.log")
 LOG_MAX_BYTES = int(os.getenv("LOG_MAX_BYTES", str(10 * 1024 * 1024)))
 LOG_BACKUP_COUNT = int(os.getenv("LOG_BACKUP_COUNT", "5"))
 
-
-# Point SQLAlchemy at the existing SQLite DB file
+# Database path and URL
 DB_PATH = os.getenv("DB_PATH", "data/matched_tracks.db")
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{DB_PATH}"
 
-# Create engine and session factory
-engine = create_engine(
-    SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    echo=False,
-)
-SessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=engine,
+
+# ----- Typed configs -----
+@dataclass(frozen=True)
+class SpotifyConfig:
+    client_id: str
+    client_secret: str
+    redirect_uri: str
+    retry_attempts: int
+    retry_multiplier: float
+    retry_max: int
+
+
+@dataclass(frozen=True)
+class YouTubeConfig:
+    client_id: str
+    client_secret: str
+    redirect_uri: str
+    retry_attempts: int
+    retry_multiplier: float
+    retry_max: int
+
+
+@dataclass(frozen=True)
+class DBConfig:
+    path: str
+    url: str
+
+
+@dataclass(frozen=True)
+class LoggingConfig:
+    file_name: str
+    max_bytes: int
+    backup_count: int
+
+
+# Instantiate grouped configs
+SPOTIFY_CONFIG = SpotifyConfig(
+    client_id=os.getenv("SPOTIFY_CLIENT_ID"),
+    client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
+    redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI"),
+    retry_attempts=SPOTIFY_RETRY_ATTEMPTS,
+    retry_multiplier=SPOTIFY_RETRY_MULTIPLIER,
+    retry_max=SPOTIFY_RETRY_MAX,
 )
 
-# Base class for ORM models
+YOUTUBE_CONFIG = YouTubeConfig(
+    client_id=os.getenv("YOUTUBE_CLIENT_ID"),
+    client_secret=os.getenv("YOUTUBE_CLIENT_SECRET"),
+    redirect_uri=os.getenv("YOUTUBE_REDIRECT_URI"),
+    retry_attempts=YOUTUBE_RETRY_ATTEMPTS,
+    retry_multiplier=YOUTUBE_RETRY_MULTIPLIER,
+    retry_max=YOUTUBE_RETRY_MAX,
+)
+
+DB_CONFIG = DBConfig(path=DB_PATH, url=SQLALCHEMY_DATABASE_URL)
+
+LOGGING_CONFIG = LoggingConfig(
+    file_name=LOG_FILE_NAME,
+    max_bytes=LOG_MAX_BYTES,
+    backup_count=LOG_BACKUP_COUNT,
+)
+
+# Backward-compatible constants
+SPOTIFY_CLIENT_ID = SPOTIFY_CONFIG.client_id
+SPOTIFY_CLIENT_SECRET = SPOTIFY_CONFIG.client_secret
+SPOTIFY_REDIRECT_URI = SPOTIFY_CONFIG.redirect_uri
+
+YOUTUBE_CLIENT_ID = YOUTUBE_CONFIG.client_id
+YOUTUBE_CLIENT_SECRET = YOUTUBE_CONFIG.client_secret
+YOUTUBE_REDIRECT_URI = YOUTUBE_CONFIG.redirect_uri
+
+# SQLAlchemy setup (echo tied to DEBUG)
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+
+engine = create_engine(
+    DB_CONFIG.url,
+    connect_args={"check_same_thread": False},
+    echo=DEBUG,
+)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

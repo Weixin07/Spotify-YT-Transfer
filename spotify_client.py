@@ -18,10 +18,8 @@ from config import (
     SPOTIFY_RETRY_MAX,
 )
 
-# Configure logging to display info-level messages with a timestamp.
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+# Use centralized logging; get module logger
+logger = logging.getLogger(__name__)
 
 
 class SpotifyClient:
@@ -31,7 +29,7 @@ class SpotifyClient:
         Side Effects:
             - Configures the Spotipy client with OAuth2 credentials.
         """
-        logging.info("Initializing SpotifyClient.")
+        logger.info("Initializing SpotifyClient.")
 
         self.sp = spotipy.Spotify(
             auth_manager=SpotifyOAuth(
@@ -41,7 +39,7 @@ class SpotifyClient:
                 scope="playlist-read-private user-library-read",
             )
         )
-        logging.info("Spotify client initialized successfully.")
+        logger.info("Spotify client initialized successfully.")
 
     @retry(
         stop=stop_after_attempt(SPOTIFY_RETRY_ATTEMPTS),
@@ -49,7 +47,7 @@ class SpotifyClient:
             multiplier=SPOTIFY_RETRY_MULTIPLIER, max=SPOTIFY_RETRY_MAX
         ),
         retry=retry_if_exception_type(SpotifyException),
-        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logger.warning),
     )
     def get_playlist_tracks(self, playlist_id: str) -> list:
         """Retrieve all tracks from a Spotify playlist.
@@ -63,14 +61,14 @@ class SpotifyClient:
         Raises:
             SpotifyException: If the Spotify API request fails.
         """
-        logging.info(f"Retrieving tracks for Spotify playlist ID: {playlist_id}")
+        logger.info(f"Retrieving tracks for Spotify playlist ID: {playlist_id}")
 
         results = self.sp.playlist_items(playlist_id)
         tracks = []
         page = 1
         while results:
             items = results.get("items", [])
-            logging.info(f"Processing page {page} with {len(items)} items.")
+            logger.info(f"Processing page {page} with {len(items)} items.")
             for idx, item in enumerate(items, start=1):
                 track = item.get("track", {})
                 if track:
@@ -83,16 +81,16 @@ class SpotifyClient:
                         "duration_ms": track.get("duration_ms"),
                     }
                     tracks.append(track_info)
-                    logging.info(
+                    logger.info(
                         f"Added track {idx} on page {page}: '{track_info['name']}' by {track_info['artist']}."
                     )
                 else:
-                    logging.warning(
+                    logger.warning(
                         f"Item {idx} on page {page} has no track information."
                     )
             results = self.sp.next(results) if self.sp.next(results) else None
             page += 1
-        logging.info(f"Total tracks retrieved: {len(tracks)}")
+        logger.info(f"Total tracks retrieved: {len(tracks)}")
         return tracks
 
     @retry(
@@ -101,7 +99,7 @@ class SpotifyClient:
             multiplier=SPOTIFY_RETRY_MULTIPLIER, max=SPOTIFY_RETRY_MAX
         ),
         retry=retry_if_exception_type(SpotifyException),
-        before_sleep=before_sleep_log(logging.getLogger(__name__), logging.WARNING),
+        before_sleep=before_sleep_log(logging.getLogger(__name__), logger.warning),
     )
     def get_liked_tracks(self) -> list:
         """Retrieve all of the user's saved (liked) Spotify tracks.
@@ -112,7 +110,7 @@ class SpotifyClient:
         Raises:
             SpotifyException: If the Spotify API request fails.
         """
-        logging.info("Retrieving user's liked songs")
+        logger.info("Retrieving user's liked songs")
         ...
 
         results = self.sp.current_user_saved_tracks()
@@ -120,7 +118,7 @@ class SpotifyClient:
         page = 1
         while results:
             items = results.get("items", [])
-            logging.info(f"Processing liked songs page {page} with {len(items)} items.")
+            logger.info(f"Processing liked songs page {page} with {len(items)} items.")
             for idx, item in enumerate(items, start=1):
                 track = item.get("track", {})
                 if track:
@@ -133,14 +131,14 @@ class SpotifyClient:
                         "duration_ms": track.get("duration_ms"),
                     }
                     tracks.append(track_info)
-                    logging.info(
+                    logger.info(
                         f"Added liked song {idx} on page {page}: '{track_info['name']}' by {track_info['artist']}."
                     )
                 else:
-                    logging.warning(
+                    logger.warning(
                         f"Item {idx} on liked songs page {page} has no track information."
                     )
             results = self.sp.next(results) if self.sp.next(results) else None
             page += 1
-        logging.info(f"Total liked songs retrieved: {len(tracks)}")
+        logger.info(f"Total liked songs retrieved: {len(tracks)}")
         return tracks

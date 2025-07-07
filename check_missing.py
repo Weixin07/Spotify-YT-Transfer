@@ -5,10 +5,8 @@ from youtube_client import YouTubeClient
 from data_storage import get_matched_track
 from config import DEBUG
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+# Use centralized logger.error; get module logger
+logger = logging.getLogger(__name__)
 
 
 def find_missing_tracks(spotify_playlist_id: str, youtube_playlist_id: str) -> dict:
@@ -24,7 +22,7 @@ def find_missing_tracks(spotify_playlist_id: str, youtube_playlist_id: str) -> d
 
     # Retrieve Spotify tracks
     spotify_tracks = spotify.get_playlist_tracks(spotify_playlist_id)
-    logging.info(f"Total Spotify tracks retrieved: {len(spotify_tracks)}")
+    logger.info(f"Total Spotify tracks retrieved: {len(spotify_tracks)}")
 
     # Create a list of unique keys and track mapping.
     unique_ids = []
@@ -50,7 +48,7 @@ def find_missing_tracks(spotify_playlist_id: str, youtube_playlist_id: str) -> d
 
     # Retrieve YouTube playlist video IDs (set for fast lookup)
     youtube_video_ids = set(yt.get_playlist_items(youtube_playlist_id))
-    logging.info(f"Total YouTube videos retrieved: {len(youtube_video_ids)}")
+    logger.info(f"Total YouTube videos retrieved: {len(youtube_video_ids)}")
 
     missing_tracks = []
     # Check each Spotify track (by unique_id) to see if its cached match is in the YouTube playlist.
@@ -92,12 +90,12 @@ if __name__ == "__main__":
     SPOTIFY_PLAYLIST_ID = "YOUR_SPOTIFY_PLAYLIST_ID"
     YOUTUBE_PLAYLIST_ID = "YOUR_YOUTUBE_PLAYLIST_ID"
     results = find_missing_tracks(SPOTIFY_PLAYLIST_ID, YOUTUBE_PLAYLIST_ID)
-    logging.info("Missing Tracks:")
+    logger.info("Missing Tracks:")
     for track in results["missing_tracks"]:
-        logging.info(f"{track}")
-    logging.info("Duplicate Tracks:")
+        logger.info(f"{track}")
+    logger.info("Duplicate Tracks:")
     for dup in results["duplicate_tracks"]:
-        logging.info(f"{dup}")
-    logging.info("Unavailable Tracks:")
+        logger.info(f"{dup}")
+    logger.info("Unavailable Tracks:")
     for unavail in results["unavailable_tracks"]:
-        logging.info(f"{unavail}")
+        logger.info(f"{unavail}")

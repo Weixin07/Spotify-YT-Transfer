@@ -13,10 +13,8 @@ from config import (
     HTTP_REQUEST_TIMEOUT,
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
-)
+# Use centralized logging; get module logger
+logger = logging.getLogger(__name__)
 
 
 def download_playlist_cover(
@@ -61,7 +59,7 @@ def download_playlist_cover(
                 valid_images,
                 key=lambda x: (x.get("width") or 0) * (x.get("height") or 0),
             )
-            logging.info(
+            logger.info(
                 f"Selected image with resolution {chosen_image.get('width')}x{chosen_image.get('height')} meeting requirements."
             )
             image_url = chosen_image["url"]
@@ -70,9 +68,9 @@ def download_playlist_cover(
             if response.status_code == 200:
                 with open(save_path, "wb") as f:
                     f.write(response.content)
-                logging.info(f"Cover image saved to {save_path}")
+                logger.info(f"Cover image saved to {save_path}")
             else:
-                logging.error(
+                logger.error(
                     f"Failed to download image. HTTP Status Code: {response.status_code}"
                 )
         else:
@@ -80,7 +78,7 @@ def download_playlist_cover(
             chosen_image = max(
                 images, key=lambda x: (x.get("width") or 0) * (x.get("height") or 0)
             )
-            logging.warning(
+            logger.warning(
                 f"No image met the minimum resolution. Using largest available image with resolution {chosen_image.get('width')}x{chosen_image.get('height')}."
             )
             image_url = chosen_image["url"]
@@ -96,13 +94,13 @@ def download_playlist_cover(
                     method=Image.BICUBIC,
                 )
                 enhanced_image.save(save_path)
-                logging.info(f"Enhanced cover image saved to {save_path}")
+                logger.info(f"Enhanced cover image saved to {save_path}")
             else:
-                logging.error(
+                logger.error(
                     f"Failed to download image. HTTP Status Code: {response.status_code}"
                 )
     else:
-        logging.warning("No cover image found for this playlist.")
+        logger.warning("No cover image found for this playlist.")
 
 
 if __name__ == "__main__":
