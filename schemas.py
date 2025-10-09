@@ -95,3 +95,41 @@ class YouTubePlaylistResponse(BaseModel):
     playlist_id: str = Field(
         ..., example="PLabcdef123456", description="ID of the YouTube playlist"
     )
+
+
+class SplitLikedSongsParams(BaseModel):
+    playlist_base_name: constr(min_length=1) = Field(
+        ...,
+        example="Liked Songs",
+        description="Base name for the split playlists. Will be suffixed with '-1', '-2', etc.",
+    )
+    tracks_per_playlist: int = Field(
+        1000,
+        example=1000,
+        ge=1,
+        le=10000,
+        description="Number of tracks per playlist (default: 1000, max: 10000)",
+    )
+    public: bool = Field(
+        False,
+        example=False,
+        description="Whether the created playlists should be public (default: False)",
+    )
+
+
+class PlaylistInfo(BaseModel):
+    name: str = Field(..., example="Liked Songs-1", description="Name of the playlist")
+    playlist_id: str = Field(
+        ..., example="37i9dQZF1DXcBWIGoYBM5M", description="Spotify playlist ID"
+    )
+    track_count: int = Field(..., example=1000, description="Number of tracks in playlist")
+
+
+class SplitLikedSongsResponse(BaseModel):
+    message: str = Field(
+        ..., example="Successfully split 5600 liked songs into 6 playlists", description="Success message"
+    )
+    total_tracks: int = Field(..., example=5600, description="Total number of liked songs processed")
+    playlists_created: List[PlaylistInfo] = Field(
+        ..., description="List of created playlists with their details"
+    )

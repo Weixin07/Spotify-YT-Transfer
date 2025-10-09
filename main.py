@@ -29,6 +29,7 @@ from data_storage import (
 from track_matcher import match_track
 from check_missing import find_missing_tracks
 from download_cover import download_playlist_cover
+from split_liked_songs import split_liked_songs
 from schemas import (
     MigrateParams,
     MigrateResponse,
@@ -36,6 +37,8 @@ from schemas import (
     CheckMissingResponse,
     YouTubePlaylistParams,
     YouTubePlaylistResponse,
+    SplitLikedSongsParams,
+    SplitLikedSongsResponse,
 )
 import models  # ensure ORM models are registered
 
@@ -278,7 +281,7 @@ async def spotify_callback(request: Request):
             client_id=SPOTIFY_CLIENT_ID,
             client_secret=SPOTIFY_CLIENT_SECRET,
             redirect_uri=SPOTIFY_REDIRECT_URI,
-            scope="playlist-read-private user-library-read",
+            scope="playlist-read-private user-library-read playlist-modify-private",
         )
         token_info = await run_in_threadpool(
             spotify_auth_manager.get_access_token, code
@@ -551,7 +554,7 @@ async def migrate_playlist(
     tags=["Utilities"],
     summary="Check missing tracks",
     description=(
-        "Compares a Spotify playlist with a YouTube playlist and returns "
+        "Compares a Spotify playlist (or Liked Songs) with a YouTube playlist and returns "
         "tracks that are missing, duplicated, or unavailable."
     ),
     responses={
@@ -581,7 +584,15 @@ async def migrate_playlist(
                     }
                 }
             },
-        }
+        },
+        400: {
+            "description": "Invalid request - must provide spotify_playlist_id if use_liked_tracks is False",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "spotify_playlist_id is required when use_liked_tracks is False"}
+                }
+            },
+        },
     },
 )
 async def check_missing(params: CheckMissingParams = Depends()):
@@ -640,6 +651,86 @@ async def get_youtube_playlist_id(
     else:
         raise HTTPException(
             status_code=404, detail=f"Playlist '{playlist_name}' not found."
+        )
+
+
+# Split Liked Songs into Multiple Playlists
+@app.post(
+    "/split-liked-songs",
+    response_model=SplitLikedSongsResponse,
+    tags=["Utilities"],
+    summary="Split liked songs into multiple playlists",
+    description=(
+        "Splits the user's Spotify liked songs into multiple playlists with a specified number of tracks each. "
+        "Useful for organizing large liked songs collections into manageable chunks."
+    ),
+    responses={
+        200: {
+            "description": "Liked songs successfully split into playlists",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "message": "Successfully split 5600 liked songs into 6 playlists",
+                        "total_tracks": 5600,
+                        "playlists_created": [
+                            {
+                                "name": "Liked Songs-1",
+                                "playlist_id": "37i9dQZF1DXcBWIGoYBM5M",
+                                "track_count": 1000
+                            },
+                            {
+                                "name": "Liked Songs-2",
+                                "playlist_id": "37i9dQZF1DXcBWIGoYBM6N",
+                                "track_count": 1000
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "Error retrieving liked songs or creating playlists",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error splitting liked songs: ..."}
+                }
+            },
+        },
+    },
+)
+async def split_liked_songs_endpoint(params: SplitLikedSongsParams):
+    """
+    Split the user's Spotify liked songs into multiple playlists.
+
+    Args:
+        params (SplitLikedSongsParams): Parameters including playlist base name, tracks per playlist, and public flag.
+
+    Returns:
+        SplitLikedSongsResponse: Contains total tracks processed and list of created playlists.
+
+    Raises:
+        HTTPException: If there's an error retrieving liked songs or creating playlists.
+    """
+    try:
+        result = await run_in_threadpool(
+            split_liked_songs,
+            params.playlist_base_name,
+            params.tracks_per_playlist,
+            params.public
+        )
+
+        message = f"Successfully split {result['total_tracks']} liked songs into {len(result['playlists_created'])} playlists"
+
+        return {
+            "message": message,
+            "total_tracks": result["total_tracks"],
+            "playlists_created": result["playlists_created"]
+        }
+    except Exception as e:
+        logger.error(f"Error splitting liked songs: {e}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error splitting liked songs: {str(e)}"
         )
 
 
