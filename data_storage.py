@@ -118,3 +118,25 @@ def clear_failed_track(spotify_id: str):
             session.delete(obj)
             session.commit()
             logger.info("Failed track record cleared.")
+
+
+def get_all_matched_tracks() -> list:
+    """
+    Retrieves all matched tracks from the database.
+    Returns a list of dicts with keys: spotify_id, song_name, artist, album, youtube_id.
+    """
+    logger.info("Retrieving all matched tracks from database.")
+    with SessionLocal() as session:
+        tracks = session.query(MatchedTrack).all()
+    result = [
+        {
+            "spotify_id": t.spotify_id,
+            "song_name": t.song_name,
+            "artist": t.artist,
+            "album": t.album,
+            "youtube_id": t.youtube_id,
+        }
+        for t in tracks
+    ]
+    logger.info(f"Retrieved {len(result)} matched tracks from database.")
+    return result

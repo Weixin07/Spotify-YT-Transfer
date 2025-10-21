@@ -4,3 +4,9 @@
 token.pickle
 cover.jpg
 migration.log
+/.claude
+/claude
+/node_modules
+package-lock.json
+/vm-1
+/__pycache__

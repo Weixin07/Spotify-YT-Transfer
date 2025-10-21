@@ -220,7 +220,8 @@ class YouTubeClient:
                 part="snippet",
                 q=query,
                 type="video",
-                maxResults=1,
+                videoCategoryId="10",  # Filter to Music category only
+                maxResults=5,  # Get multiple results at once to reduce pagination
                 pageToken=page_token,
             )
             response = request.execute()
@@ -228,47 +229,23 @@ class YouTubeClient:
             if not items:
                 logger.info("No more search results available.")
                 break
-            candidate = items[0]
-            # Safely retrieve the candidate video ID
-            video_id = candidate.get("id", {}).get("videoId")
-            if not video_id:
-                logger.warning(
-                    "Candidate item missing 'videoId', skipping to next result."
-                )
-                page_token = response.get("nextPageToken")
-                if not page_token:
-                    logger.info("No further candidates available.")
-                    break
-                continue
-            logger.info(f"Evaluating candidate video ID: {video_id}")
-            # Retrieve detailed information for this candidate.
-            details_request = self.service.videos().list(
-                part="snippet,contentDetails,status", id=video_id
-            )
-            details_response = details_request.execute()
-            detail_items = details_response.get("items", [])
-            if detail_items:
-                video_details = detail_items[0]
-                category_id = video_details["snippet"].get("categoryId")
-                logger.info(
-                    f"Candidate video {video_id} has categoryId: {category_id}"
-                )
-                # Check if the candidate is in the Music category (typically categoryId "10")
-                if category_id == "10":
-                    logger.info(
-                        f"Candidate video {video_id} accepted as a Music video."
-                    )
+
+            # Since we filtered by videoCategoryId=10, all results are Music videos
+            # Return the first valid video ID found
+            for candidate in items:
+                video_id = candidate.get("id", {}).get("videoId")
+                if video_id:
+                    logger.info(f"Found Music video: {video_id}")
                     return video_id
                 else:
-                    logger.info(
-                        f"Candidate video {video_id} rejected (not in Music category)."
+                    logger.warning(
+                        "Candidate item missing 'videoId', checking next result."
                     )
-            # Move to next candidate if available.
+
+            # If no valid video ID in current page, try next page
             page_token = response.get("nextPageToken")
             if not page_token:
-                logger.info(
-                    "Reached end of search results without finding a valid Music video."
-                )
+                logger.info("Reached end of search results without finding a valid video.")
                 break
         return None
 

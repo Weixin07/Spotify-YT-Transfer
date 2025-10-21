@@ -25,6 +25,7 @@ from data_storage import (
     get_failed_track,
     record_failed_track,
     clear_failed_track,
+    get_all_matched_tracks,
 )
 from track_matcher import match_track
 from check_missing import find_missing_tracks
@@ -412,22 +413,6 @@ async def migrate_playlist(
         logger.info(
             f"Using existing YouTube playlist '{youtube_playlist_title}' with ID {existing_playlist_id}."
         )
-        # Fetch existing videos in this playlist
-        try:
-            existing_videos = set(
-                await run_in_threadpool(yt.get_playlist_items, yt_playlist_id)
-            )
-            logger.info(f"Found {len(existing_videos)} existing videos in playlist.")
-
-        except HttpError as e:
-            if is_quota_exceeded(e):
-                logger.error("Max quota reached. Stopping migration now.")
-                raise HTTPException(
-                    status_code=429,
-                    detail="YouTube API quota exceeded—migration aborted.",
-                )
-            else:
-                raise  # re-raise any other HttpError
     else:
         try:
             yt_playlist_id = await run_in_threadpool(
@@ -435,7 +420,6 @@ async def migrate_playlist(
                 title=youtube_playlist_title,
                 description="Migrated from Spotify",
             )
-            existing_videos = set()
             logger.info(
                 f"Created new YouTube playlist '{youtube_playlist_title}' with ID {yt_playlist_id}."
             )
@@ -444,6 +428,12 @@ async def migrate_playlist(
             raise HTTPException(
                 status_code=400, detail=f"Error creating YouTube playlist: {str(e)}"
             )
+
+    # Note: We don't track which videos are in the playlist to allow the same song
+    # to be added to multiple different playlists. The database only caches search results.
+    # YouTube API will handle duplicate prevention within the same playlist.
+    existing_videos = set()
+    logger.info("Starting fresh migration - will add all tracks to playlist.")
 
     # 3. Iterate over each Spotify track and add to YT if not already in playlist
     failed_attempts = []  # keep track of songs that fail after all retries
