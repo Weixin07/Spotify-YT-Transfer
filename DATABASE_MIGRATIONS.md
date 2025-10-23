@@ -112,6 +112,11 @@ alembic -c src/spotify_yt_transfer/database/alembic.ini upgrade +1
 alembic -c src/spotify_yt_transfer/database/alembic.ini upgrade <revision_id>
 ```
 
+> **Note:** The application now executes `alembic upgrade head` automatically during startup
+> (via `init_db()`), ensuring deployed environments always apply the latest migrations.
+> You should still run the commands above locally whenever you make schema changes to
+> verify the migration history.
+
 4. Rolling Back Migrations
 
 Revert to a previous schema version:
@@ -475,3 +480,4 @@ Next Steps
 - Practice creating a test migration in development
 - Set up database backups before production migrations
 - Document any custom migration logic in migration file comments
+
