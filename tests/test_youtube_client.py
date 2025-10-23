@@ -1,24 +1,33 @@
-import pytest
-from youtube_client import YouTubeClient
+from unittest.mock import MagicMock, mock_open
+
+from spotify_yt_transfer.clients.youtube_client import YouTubeClient
 
 
 def test_youtube_client_init(monkeypatch):
-    # stub token flow and build
-    monkeypatch.setattr("youtube_client.os.path.exists", lambda p: False)
+    # Mock pickle.load to return a fake credential
+    mock_cred = MagicMock()
+    mock_cred.valid = True
+    mock_cred.expired = False
 
-    class DummyCred:
-        pass
+    # Mock the Path.exists() method
+    from pathlib import Path
 
-    class Flow:
-        def run_local_server(self, port):
-            return DummyCred()
+    monkeypatch.setattr(Path, "exists", lambda self: True)
 
+    # Mock pickle.load
     monkeypatch.setattr(
-        "youtube_client.InstalledAppFlow",
-        type("F", (), {"from_client_config": lambda *a, **k: Flow()}),
+        "spotify_yt_transfer.clients.youtube_client.pickle.load", lambda f: mock_cred
     )
-    monkeypatch.setattr("youtube_client.build", lambda *a, **k: object())
-    # avoid pickle.dump trying to pickle a local DummyCred class
-    monkeypatch.setattr("youtube_client.pickle.dump", lambda obj, file: None)
+
+    # Mock build function
+    mock_service = MagicMock()
+    monkeypatch.setattr(
+        "spotify_yt_transfer.clients.youtube_client.build", lambda *a, **k: mock_service
+    )
+
+    # Mock open for token.pickle
+    mock_file = mock_open()
+    monkeypatch.setattr("builtins.open", mock_file)
+
     client = YouTubeClient()
     assert client.service is not None

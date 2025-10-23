@@ -1,0 +1,373 @@
+"""YouTube Data API client with OAuth2 authentication and caching."""
+
+import json
+import logging
+import pickle
+from pathlib import Path
+from typing import Any
+
+from cachetools import TTLCache, cached
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import Resource, build
+from googleapiclient.errors import HttpError
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception,
+    stop_after_attempt,
+    wait_random_exponential,
+)
+
+from spotify_yt_transfer.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+# YouTube API scopes
+SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+
+# 15 minute TTL cache for search results (max 1000 entries)
+_youtube_search_cache: TTLCache = TTLCache(maxsize=1000, ttl=15 * 60)
+
+
+def _is_quota_exceeded(error: HttpError) -> bool:
+    """
+    Determine if the HttpError is due to YouTube API quota exhaustion.
+
+    Args:
+        error: Exception raised by the YouTube API client
+
+    Returns:
+        True if the error reason equals 'quotaExceeded', False otherwise
+    """
+    try:
+        status = error.resp.status
+        body = error.content.decode()
+        payload = json.loads(body)
+        reason = payload.get("error", {}).get("errors", [{}])[0].get("reason", "")
+        return status == 403 and reason == "quotaExceeded"
+    except Exception:
+        return False
+
+
+class YouTubeClient:
+    """
+    Client for interacting with the YouTube Data API v3.
+
+    Handles authentication, playlist management, and video search
+    with automatic retry logic and caching.
+    """
+
+    def __init__(self, token_path: str = "token.pickle") -> None:
+        """
+        Initialize the YouTubeClient by authenticating and configuring the service.
+
+        Args:
+            token_path: Path to store OAuth2 credentials pickle file
+
+        Raises:
+            Exception: If authentication fails
+        """
+        logger.info("Initializing YouTubeClient")
+
+        self.token_path = Path(token_path)
+        self.creds: Any | None = None
+        self.service: Resource = self._authenticate()
+
+        logger.info("YouTubeClient initialized successfully")
+
+    def _authenticate(self) -> Resource:
+        """
+        Authenticate with the YouTube API, refreshing or generating credentials as needed.
+
+        Returns:
+            Authorized YouTube API client resource
+
+        Side Effects:
+            Writes new credentials to token pickle file if generated
+        """
+        logger.info("Authenticating with YouTube API")
+
+        if self.token_path.exists():
+            logger.info(f"Found existing {self.token_path}. Loading credentials")
+            with self.token_path.open("rb") as token:
+                self.creds = pickle.load(token)
+
+        if not self.creds or not self.creds.valid:
+            if self.creds and self.creds.expired and self.creds.refresh_token:
+                logger.info("Credentials expired. Refreshing token")
+                self.creds.refresh(GoogleAuthRequest())
+            else:
+                logger.info("No valid credentials found. Initiating OAuth2 flow")
+                flow = InstalledAppFlow.from_client_config(
+                    {
+                        "installed": {
+                            "client_id": settings.youtube.client_id,
+                            "client_secret": settings.youtube.client_secret,
+                            "redirect_uris": [settings.youtube.redirect_uri],
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                        }
+                    },
+                    SCOPES,
+                )
+                self.creds = flow.run_local_server(port=8002)
+
+            with self.token_path.open("wb") as token:
+                pickle.dump(self.creds, token)
+            logger.info(f"New credentials saved to {self.token_path}")
+        else:
+            logger.info(f"Using valid credentials from {self.token_path}")
+
+        return build("youtube", "v3", credentials=self.creds)
+
+    @cached(cache=_youtube_search_cache, key=lambda _self, playlist_name: playlist_name)
+    @retry(
+        stop=stop_after_attempt(settings.youtube.retry_attempts),
+        wait=wait_random_exponential(
+            multiplier=settings.youtube.retry_multiplier,
+            max=settings.youtube.retry_max,
+        ),
+        retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def find_playlist_by_name(self, playlist_name: str) -> str | None:
+        """
+        Check if a playlist with the given name exists in the user's account.
+
+        Args:
+            playlist_name: Name of the playlist to search for
+
+        Returns:
+            Playlist ID if found, None otherwise
+
+        Raises:
+            HttpError: If the YouTube API request fails (except quota errors)
+        """
+        logger.info(f"Searching for existing playlist with name: '{playlist_name}'")
+
+        page_token: str | None = None
+        page = 1
+
+        while True:
+            response = (
+                self.service.playlists()
+                .list(part="snippet", mine=True, maxResults=50, pageToken=page_token)
+                .execute()
+            )
+
+            items = response.get("items", [])
+            logger.info(f"Processing page {page} of playlists. Items found: {len(items)}")
+
+            for item in items:
+                title = item["snippet"]["title"]
+                logger.debug(f"Found playlist: '{title}'")
+                if title.lower() == playlist_name.lower():
+                    playlist_id = item["id"]
+                    logger.info(f"Match found. Playlist ID: {playlist_id}")
+                    return playlist_id
+
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+            page += 1
+
+        logger.info("No matching playlist found")
+        return None
+
+    @cached(cache=_youtube_search_cache, key=lambda _self, playlist_id: playlist_id)
+    @retry(
+        stop=stop_after_attempt(settings.youtube.retry_attempts),
+        wait=wait_random_exponential(
+            multiplier=settings.youtube.retry_multiplier,
+            max=settings.youtube.retry_max,
+        ),
+        retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def get_playlist_items(self, playlist_id: str) -> list[str]:
+        """
+        Retrieve all video IDs currently in the specified playlist.
+
+        Args:
+            playlist_id: YouTube playlist ID
+
+        Returns:
+            List of video IDs in the playlist
+
+        Raises:
+            HttpError: If the YouTube API request fails (except quota errors)
+        """
+        logger.info(f"Retrieving videos from playlist ID: {playlist_id}")
+
+        page_token: str | None = None
+        video_ids: list[str] = []
+        page = 1
+
+        while True:
+            response = (
+                self.service.playlistItems()
+                .list(
+                    part="snippet",
+                    playlistId=playlist_id,
+                    maxResults=50,
+                    pageToken=page_token,
+                )
+                .execute()
+            )
+
+            items = response.get("items", [])
+            logger.info(f"Page {page}: Retrieved {len(items)} items")
+
+            for idx, item in enumerate(items, start=1):
+                resource = item["snippet"]["resourceId"]
+                if resource["kind"] == "youtube#video":
+                    video_id = resource["videoId"]
+                    video_ids.append(video_id)
+                    logger.debug(f"Page {page} - Video {idx}: {video_id}")
+
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+            page += 1
+
+        logger.info(f"Total videos retrieved: {len(video_ids)}")
+        return video_ids
+
+    @cached(cache=_youtube_search_cache, key=lambda _self, query: query)
+    @retry(
+        stop=stop_after_attempt(settings.youtube.retry_attempts),
+        wait=wait_random_exponential(
+            multiplier=settings.youtube.retry_multiplier,
+            max=settings.youtube.retry_max,
+        ),
+        retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def search_video(self, query: str) -> str | None:
+        """
+        Search YouTube for the best matching music video for the given query.
+
+        Args:
+            query: Combined track name and artist string
+
+        Returns:
+            Video ID of the best matching music video, or None if none found
+
+        Raises:
+            HttpError: If the YouTube API request fails (except quota errors)
+        """
+        logger.info(f"Searching YouTube for query: '{query}'")
+
+        page_token: str | None = None
+
+        while True:
+            request = self.service.search().list(
+                part="snippet",
+                q=query,
+                type="video",
+                videoCategoryId="10",  # Filter to Music category only
+                maxResults=5,  # Get multiple results at once to reduce pagination
+                pageToken=page_token,
+            )
+            response = request.execute()
+            items = response.get("items", [])
+
+            if not items:
+                logger.info("No more search results available")
+                break
+
+            # Since we filtered by videoCategoryId=10, all results are Music videos
+            # Return the first valid video ID found
+            for candidate in items:
+                video_id = candidate.get("id", {}).get("videoId")
+                if video_id:
+                    logger.info(f"Found Music video: {video_id}")
+                    return video_id
+                else:
+                    logger.warning("Candidate item missing 'videoId', checking next result")
+
+            # If no valid video ID in current page, try next page
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                logger.info("Reached end of search results without finding a valid video")
+                break
+
+        return None
+
+    @retry(
+        stop=stop_after_attempt(settings.youtube.retry_attempts),
+        wait=wait_random_exponential(
+            multiplier=settings.youtube.retry_multiplier,
+            max=settings.youtube.retry_max,
+        ),
+        retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def create_playlist(self, title: str, description: str = "") -> str:
+        """
+        Create a new private YouTube playlist.
+
+        Args:
+            title: Title for the new playlist
+            description: Optional description text
+
+        Returns:
+            The newly created playlist ID
+
+        Raises:
+            HttpError: If the YouTube API request fails (except quota errors)
+        """
+        logger.info(f"Creating YouTube playlist: '{title}' with description: '{description}'")
+
+        request = self.service.playlists().insert(
+            part="snippet,status",
+            body={
+                "snippet": {"title": title, "description": description},
+                "status": {"privacyStatus": "private"},
+            },
+        )
+        response = request.execute()
+        playlist_id = response.get("id")
+
+        logger.info(f"Playlist created with ID: {playlist_id}")
+        return playlist_id
+
+    @retry(
+        stop=stop_after_attempt(settings.youtube.retry_attempts),
+        wait=wait_random_exponential(
+            multiplier=settings.youtube.retry_multiplier,
+            max=settings.youtube.retry_max,
+        ),
+        retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def add_video_to_playlist(self, playlist_id: str, video_id: str) -> dict[str, Any]:
+        """
+        Add a video to a specified YouTube playlist.
+
+        Args:
+            playlist_id: ID of the target playlist
+            video_id: ID of the video to be added
+
+        Returns:
+            The API response for the insert operation
+
+        Raises:
+            HttpError: If the YouTube API request fails (except quota errors)
+        """
+        logger.info(f"Adding video ID: {video_id} to playlist ID: {playlist_id}")
+
+        request = self.service.playlistItems().insert(
+            part="snippet",
+            body={
+                "snippet": {
+                    "playlistId": playlist_id,
+                    "resourceId": {"kind": "youtube#video", "videoId": video_id},
+                }
+            },
+        )
+        response = request.execute()
+
+        logger.info(f"Video {video_id} added to playlist {playlist_id} successfully")
+        return response

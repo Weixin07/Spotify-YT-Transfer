@@ -1,7 +1,6 @@
-import pytest
-from io import BytesIO
-import os
-from download_cover import download_playlist_cover
+from unittest.mock import MagicMock
+
+from spotify_yt_transfer.services.playlist_service import PlaylistService
 
 
 class DummyResp:
@@ -9,28 +8,27 @@ class DummyResp:
         self.content = content
         self.status_code = status
 
+    def raise_for_status(self):
+        """Mock method for requests.Response compatibility."""
+        pass
 
-@pytest.fixture(autouse=True)
-def stub_requests_and_spotipy(monkeypatch):
-    # stub HTTP GET so “u” won’t be treated as a real URL
+
+def test_download_cover(monkeypatch):
+    # Mock Spotify client
+    mock_spotify = MagicMock()
+    mock_spotify.sp.playlist.return_value = {
+        "images": [{"width": 800, "height": 800, "url": "http://example.com/image.jpg"}]
+    }
+
+    # Mock requests.get
     monkeypatch.setattr(
-        "download_cover.requests.get", lambda url, timeout: DummyResp(b"img")
+        "spotify_yt_transfer.services.playlist_service.requests.get",
+        lambda url, timeout: DummyResp(b"fake_image_data"),
     )
 
-    # stub out SpotifyOAuth so it won’t look for real credentials
-    monkeypatch.setattr("download_cover.SpotifyOAuth", lambda *args, **kwargs: None)
+    # Create PlaylistService instance with mock clients
+    service = PlaylistService(mock_spotify, MagicMock(), MagicMock())
 
-    # stub Spotify client
-    class DummySP:
-        def playlist(self, pid):
-            return {"images": [{"width": 800, "height": 800, "url": "u"}]}
-
-    monkeypatch.setattr(
-        "download_cover.spotipy.Spotify", lambda *args, **kwargs: DummySP()
-    )
-
-
-def test_download_cover(tmp_path):
-    out = tmp_path / "cover.jpg"
-    download_playlist_cover("pid", str(out))
-    assert out.exists()
+    # Test download
+    result = service.download_playlist_cover("pid")
+    assert result == b"fake_image_data"

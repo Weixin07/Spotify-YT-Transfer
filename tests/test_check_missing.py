@@ -1,20 +1,31 @@
-from check_missing import find_missing_tracks
+from unittest.mock import MagicMock
 
-def test_find_missing_tracks(monkeypatch):
-    # stub clients & storage
-    class SP:
-        def get_playlist_tracks(self, _): 
-            return [
-                {"name": "A", "artist": "X", "album": "Z"},
-                {"name": None, "artist": None},
-                {"name": "A", "artist": "X", "album": "Z"},
-            ]
-    class YT:
-        def get_playlist_items(self, _): return ["yt1"]
-    monkeypatch.setattr("check_missing.SpotifyClient", lambda: SP())
-    monkeypatch.setattr("check_missing.YouTubeClient", lambda: YT())
-    monkeypatch.setattr("check_missing.get_matched_track", lambda uid: {"youtube_id":"yt1"} if uid=="A|X" else None)
-    res = find_missing_tracks("s", "y")
+from spotify_yt_transfer.services.playlist_service import PlaylistService
+
+
+def test_find_missing_tracks():
+    # Mock clients
+    mock_spotify = MagicMock()
+    mock_spotify.get_playlist_tracks.return_value = [
+        {"name": "A", "artist": "X", "album": "Z"},
+        {"name": None, "artist": None},
+        {"name": "A", "artist": "X", "album": "Z"},
+    ]
+
+    mock_youtube = MagicMock()
+    mock_youtube.get_playlist_items.return_value = ["yt1"]
+
+    # Mock repository
+    mock_repo = MagicMock()
+    mock_repo.get_matched_track.side_effect = lambda uid: (
+        MagicMock(youtube_id="yt1") if uid == "A|X" else None
+    )
+
+    # Create service instance
+    service = PlaylistService(mock_spotify, mock_youtube, mock_repo)
+
+    # Test find_missing_tracks
+    res = service.find_missing_tracks("s", "y")
     assert isinstance(res, dict)
     assert "missing_tracks" in res
     assert "duplicate_tracks" in res

@@ -1,6 +1,9 @@
 # conftest.py
-import os, importlib, pytest, sys
+import importlib
+import sys
 from pathlib import Path
+
+import pytest
 
 # allow pytest to import your top-level modules
 project_root = Path(__file__).parent.parent.resolve()
@@ -11,16 +14,22 @@ sys.path.insert(0, str(project_root))
 def use_temp_db(tmp_path, monkeypatch):
     test_db = tmp_path / "test_tracks.db"
     monkeypatch.setenv("DB_PATH", str(test_db))
-    import config, models, data_storage
 
-    # reload config so it picks up DB_PATH
+    # Import new modules
+    from spotify_yt_transfer.core import config
+    from spotify_yt_transfer.database import base, init_db, models
+
+    # Reload modules to pick up new DB_PATH
     importlib.reload(config)
-    # reload your ORM definitions before data_storage so metadata is populated
+    importlib.reload(base)
     importlib.reload(models)
-    # now reload data_storage so init_db() will call create_all() on a metadata that includes your tables
-    importlib.reload(data_storage)
+
+    # Initialize database with new structure
+    init_db()
+
     yield
-    # ensure engine is disposed so file can be removed
-    from config import engine
+
+    # Ensure engine is disposed so file can be removed
+    from spotify_yt_transfer.database.base import engine
 
     engine.dispose()

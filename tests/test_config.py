@@ -1,9 +1,9 @@
-import os
-import importlib
-from config import DEBUG, MATCH_FUZZ_THRESHOLD
+from spotify_yt_transfer.core.config import settings
+
 
 def test_debug_flag_is_bool():
-    assert isinstance(DEBUG, bool)
+    assert isinstance(settings.debug, bool)
+
 
 def test_default_threshold():
-    assert MATCH_FUZZ_THRESHOLD == 70
+    assert settings.matching.fuzz_threshold == 70
