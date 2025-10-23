@@ -1,6 +1,9 @@
 """SQLAlchemy ORM models for database tables."""
 
-from sqlalchemy import Column, String
+from datetime import datetime, timedelta
+
+from sqlalchemy import Column, DateTime, String, func, select
+from sqlalchemy.orm import Session
 
 from spotify_yt_transfer.database.base import Base
 
@@ -40,3 +43,74 @@ class FailedTrack(Base):
 
     def __repr__(self) -> str:
         return f"<FailedTrack(spotify_id='{self.spotify_id}', reason='{self.reason}')>"
+
+
+class OAuthState(Base):
+    """
+    Stores transient OAuth state tokens for CSRF protection.
+
+    States are automatically purged after their time-to-live window.
+    """
+
+    __tablename__ = "oauth_states"
+
+    state = Column(String, primary_key=True, index=True, nullable=False)
+    provider = Column(String, nullable=False)
+    created_at = Column(DateTime, nullable=False, server_default=func.now())
+
+    # TTL in seconds (10 minutes) for state validity
+    TTL_SECONDS = 600
+
+    @classmethod
+    def is_expired(cls, created_at: datetime | None) -> bool:
+        """
+        Check whether a stored state has expired.
+
+        Args:
+            created_at: Timestamp stored for the state
+
+        Returns:
+            True if the state is older than the TTL window.
+        """
+        if created_at is None:
+            return True
+        return created_at < datetime.utcnow() - timedelta(seconds=cls.TTL_SECONDS)
+
+    @classmethod
+    def purge_expired(cls, db: Session) -> int:
+        """
+        Delete all expired OAuth states from the database.
+
+        Args:
+            db: Active SQLAlchemy session
+
+        Returns:
+            Number of deleted rows
+        """
+        cutoff = datetime.utcnow() - timedelta(seconds=cls.TTL_SECONDS)
+        result = db.query(cls).filter(cls.created_at < cutoff).delete()
+        db.commit()
+        return result
+
+    @classmethod
+    def exists(cls, db: Session, state: str, provider: str) -> bool:
+        """
+        Check if a state exists for the given provider.
+
+        Args:
+            db: Active SQLAlchemy session
+            state: Random state string
+            provider: OAuth provider name
+
+        Returns:
+            True if the state exists and is not expired.
+        """
+        stmt = select(cls.created_at).where(cls.state == state, cls.provider == provider)
+        created_at = db.execute(stmt).scalar_one_or_none()
+        if created_at is None:
+            return False
+        if cls.is_expired(created_at):
+            db.query(cls).filter(cls.state == state, cls.provider == provider).delete()
+            db.commit()
+            return False
+        return True

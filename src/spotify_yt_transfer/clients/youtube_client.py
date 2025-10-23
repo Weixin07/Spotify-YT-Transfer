@@ -7,7 +7,6 @@ from typing import Any
 
 from cachetools import TTLCache, cached
 from google.auth.transport.requests import Request as GoogleAuthRequest
-from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from tenacity import (
@@ -18,6 +17,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from spotify_yt_transfer.clients.errors import OAuthCredentialsMissing
 from spotify_yt_transfer.core.config import settings
 from spotify_yt_transfer.core.token_storage import YouTubeTokenStorage
 
@@ -99,33 +99,24 @@ class YouTubeClient:
 
         if self.creds:
             logger.info("Loaded existing credentials from keyring")
+        else:
+            logger.warning("YouTubeClient initialization aborted: no credentials found in keyring")
+            raise OAuthCredentialsMissing(
+                "YouTube credentials not found. Complete the OAuth flow via /v1/auth/youtube/authorize."
+            )
 
-        if not self.creds or not self.creds.valid:
-            if self.creds and self.creds.expired and self.creds.refresh_token:
-                logger.info("Credentials expired. Refreshing token")
+        if not self.creds.valid:
+            if self.creds.expired and self.creds.refresh_token:
+                logger.info("YouTube credentials expired. Refreshing token")
                 self.creds.refresh(GoogleAuthRequest())
-                # Save refreshed credentials
                 self.token_storage.save_credentials(self.creds)
             else:
-                logger.info("No valid credentials found. Initiating OAuth2 flow")
-                flow = InstalledAppFlow.from_client_config(
-                    {
-                        "installed": {
-                            "client_id": settings.youtube.client_id,
-                            "client_secret": settings.youtube.client_secret,
-                            "redirect_uris": [settings.youtube.redirect_uri],
-                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                            "token_uri": "https://oauth2.googleapis.com/token",
-                        }
-                    },
-                    SCOPES,
+                logger.warning("YouTube credentials invalid and cannot be refreshed")
+                raise OAuthCredentialsMissing(
+                    "YouTube credentials invalid. Re-authorize via /v1/auth/youtube/authorize."
                 )
-                self.creds = flow.run_local_server(port=8002)
-                # Save new credentials to keyring
-                self.token_storage.save_credentials(self.creds)
-                logger.info("New credentials saved to keyring")
         else:
-            logger.info("Using valid credentials from keyring")
+            logger.info("Using valid YouTube credentials from keyring")
 
         return build("youtube", "v3", credentials=self.creds)
 

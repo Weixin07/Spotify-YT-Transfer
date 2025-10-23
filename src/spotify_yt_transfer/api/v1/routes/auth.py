@@ -3,75 +3,120 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
-from spotipy.oauth2 import SpotifyOAuth
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
-from spotify_yt_transfer.core.config import settings
+from spotify_yt_transfer.api.dependencies import get_oauth_service
+from spotify_yt_transfer.services import OAuthService, OAuthStateError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
+def _extract_code_and_state(request: Request) -> tuple[str, str]:
+    code = request.query_params.get("code")
+    state = request.query_params.get("state")
+
+    if not code:
+        logger.error("OAuth callback missing 'code' parameter")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing code parameter in callback.")
+
+    if not state:
+        logger.error("OAuth callback missing 'state' parameter")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing state parameter in callback.")
+
+    return code, state
+
+
+@router.get(
+    "/spotify/authorize",
+    summary="Get Spotify authorization URL",
+    description="Generates a Spotify OAuth2 authorization URL for headless deployments.",
+)
+async def spotify_authorize(oauth: OAuthService = Depends(get_oauth_service)) -> dict[str, str]:
+    """
+    Produce a Spotify authorization URL and CSRF state token.
+
+    Returns:
+        Dict containing the URL and state value.
+    """
+    response = oauth.build_spotify_authorize_url()
+    return {"authorize_url": response.authorize_url, "state": response.state}
+
+
 @router.get(
     "/spotify/callback",
     summary="Spotify OAuth2 callback",
-    description="Handles Spotify OAuth2 callback by exchanging the code for access tokens",
-    responses={
-        200: {
-            "description": "Authentication successful",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "message": "Spotify authentication successful",
-                        "token_info": {"access_token": "BQD...xyz"},
-                    }
-                }
-            },
-        },
-        400: {
-            "description": "Missing or invalid code parameter",
-            "content": {
-                "application/json": {"example": {"detail": "Missing code parameter in callback."}}
-            },
-        },
-    },
+    description="Handles Spotify OAuth2 callback by exchanging the code for access tokens.",
 )
-async def spotify_callback(request: Request) -> dict[str, Any]:
+async def spotify_callback(
+    request: Request,
+    oauth: OAuthService = Depends(get_oauth_service),
+) -> dict[str, Any]:
     """
     Handle Spotify OAuth2 callback and exchange code for tokens.
 
-    Args:
-        request: The incoming HTTP request with query parameters
+    Returns:
+        Dictionary with success message and token information
+    """
+    code, state = _extract_code_and_state(request)
+
+    try:
+        logger.info("Processing Spotify OAuth callback (state=%s)", state)
+        token_info = oauth.exchange_spotify_code(code=code, state=state)
+    except OAuthStateError as exc:
+        logger.warning("Spotify OAuth state validation failed: %s", exc)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.error("Spotify authentication failed: %s", exc)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Authentication failed.") from exc
+
+    logger.info("Spotify authentication successful for state=%s", state)
+    return {"message": "Spotify authentication successful", "token_info": token_info}
+
+
+@router.get(
+    "/youtube/authorize",
+    summary="Get YouTube authorization URL",
+    description="Generates a YouTube OAuth2 authorization URL for headless deployments.",
+)
+async def youtube_authorize(oauth: OAuthService = Depends(get_oauth_service)) -> dict[str, str]:
+    """
+    Produce a YouTube authorization URL and CSRF state token.
+
+    Returns:
+        Dict containing the URL and state value.
+    """
+    response = oauth.build_youtube_authorize_url()
+    return {"authorize_url": response.authorize_url, "state": response.state}
+
+
+@router.get(
+    "/youtube/callback",
+    summary="YouTube OAuth2 callback",
+    description="Handles YouTube OAuth2 callback by exchanging the code for access tokens.",
+)
+async def youtube_callback(
+    request: Request,
+    oauth: OAuthService = Depends(get_oauth_service),
+) -> dict[str, Any]:
+    """
+    Handle YouTube OAuth2 callback and exchange code for tokens.
 
     Returns:
         Dictionary with success message and token information
-
-    Raises:
-        HTTPException: If code parameter is missing or authentication fails
     """
-    code = request.query_params.get("code")
-
-    if not code:
-        logger.error("Spotify callback: Missing 'code' parameter")
-        raise HTTPException(status_code=400, detail="Missing code parameter in callback.")
+    code, state = _extract_code_and_state(request)
 
     try:
-        logger.info("Processing Spotify callback with code received")
+        logger.info("Processing YouTube OAuth callback (state=%s)", state)
+        credentials_info = oauth.exchange_youtube_code(code=code, state=state)
+    except OAuthStateError as exc:
+        logger.warning("YouTube OAuth state validation failed: %s", exc)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.error("YouTube authentication failed: %s", exc)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Authentication failed.") from exc
 
-        spotify_auth_manager = SpotifyOAuth(
-            client_id=settings.spotify.client_id,
-            client_secret=settings.spotify.client_secret,
-            redirect_uri=settings.spotify.redirect_uri,
-            scope="playlist-read-private user-library-read playlist-modify-private playlist-modify-public",
-        )
-
-        # Exchange code for token (runs in sync, so wrap if needed in production)
-        token_info = spotify_auth_manager.get_access_token(code)
-
-        logger.info("Spotify authentication successful")
-        return {"message": "Spotify authentication successful", "token_info": token_info}
-
-    except Exception as e:
-        logger.error(f"Spotify authentication failed: {e}")
-        raise HTTPException(status_code=400, detail=f"Authentication failed: {str(e)}") from e
+    logger.info("YouTube authentication successful for state=%s", state)
+    return {"message": "YouTube authentication successful", "credentials": credentials_info}

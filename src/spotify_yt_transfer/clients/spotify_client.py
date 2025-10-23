@@ -14,6 +14,7 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from spotify_yt_transfer.clients.errors import OAuthCredentialsMissing
 from spotify_yt_transfer.core.config import settings
 from spotify_yt_transfer.core.token_storage import KeyringCacheHandler
 
@@ -49,6 +50,15 @@ class SpotifyClient:
             cache_path=settings.token_storage.spotify_cache_path,
         )
 
+        cached_token = cache_handler.get_cached_token()
+        if not cached_token:
+            logger.warning(
+                "SpotifyClient initialization aborted: no cached credentials found in keyring"
+            )
+            raise OAuthCredentialsMissing(
+                "Spotify credentials not found. Complete the OAuth flow via /v1/auth/spotify/authorize."
+            )
+
         self.sp = spotipy.Spotify(
             auth_manager=SpotifyOAuth(
                 client_id=settings.spotify.client_id,
@@ -56,6 +66,7 @@ class SpotifyClient:
                 redirect_uri=settings.spotify.redirect_uri,
                 scope="playlist-read-private user-library-read playlist-modify-private playlist-modify-public",
                 cache_handler=cache_handler,
+                open_browser=False,
             )
         )
         logger.info("Spotify client initialized successfully with keyring token storage")

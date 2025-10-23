@@ -66,6 +66,15 @@ Access API Documentation
 - ReDoc: http://localhost:8001/redoc
 - OpenAPI Schema: http://localhost:8001/openapi.json
 
+?? Headless OAuth Flow
+
+When running in a server or container without a browser:
+
+1. Call `GET /v1/spotify/authorize` (or `/v1/youtube/authorize`) to retrieve an `authorize_url` and `state`.
+2. Open the returned URL in a local browser, grant access, and allow the provider to redirect back to your server's `/v1/.../callback` endpoint.
+3. If the redirect lands on a different host (e.g., during development), copy the `code` and `state` query parameters and replay them against your deployed `/v1/.../callback` endpoint.
+4. On success, the tokens are stored securely in the keyring backend and API clients become available without restarting the service.
+
 📡 API Endpoints
 
 Health & Monitoring
@@ -74,7 +83,10 @@ Health & Monitoring
 - `GET /metrics` - Prometheus metrics
 
 Authentication
+- `GET /v1/spotify/authorize` - Generate Spotify OAuth authorize URL
 - `GET /v1/spotify/callback` - Spotify OAuth callback
+- `GET /v1/youtube/authorize` - Generate YouTube OAuth authorize URL
+- `GET /v1/youtube/callback` - YouTube OAuth callback
 
 Migration
 - `GET /v1/migrate` - Migrate Spotify playlist to YouTube

@@ -1,32 +1,74 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
+import pytest
+
+from spotify_yt_transfer.clients.errors import OAuthCredentialsMissing
 from spotify_yt_transfer.clients.youtube_client import YouTubeClient
 
 
-def test_youtube_client_init():
-    """Test YouTube client initialization with keyring storage."""
-    # Mock credentials
+def test_youtube_client_requires_credentials(monkeypatch):
+    mock_storage = MagicMock()
+    mock_storage.get_credentials.return_value = None
+    monkeypatch.setattr(
+        "spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage",
+        lambda *args, **kwargs: mock_storage,
+    )
+
+    with pytest.raises(OAuthCredentialsMissing):
+        YouTubeClient()
+
+
+def test_youtube_client_refreshes_expired_credentials(monkeypatch):
+    refreshed = {"called": False}
+
+    class DummyCred:
+        valid = False
+        expired = True
+        refresh_token = "refresh"
+
+        def refresh(self, _request):
+            refreshed["called"] = True
+
+    mock_storage = MagicMock()
+    mock_storage.get_credentials.return_value = DummyCred()
+
+    monkeypatch.setattr(
+        "spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage",
+        lambda *args, **kwargs: mock_storage,
+    )
+
+    monkeypatch.setattr(
+        "spotify_yt_transfer.clients.youtube_client.build",
+        lambda *args, **kwargs: MagicMock(),
+    )
+
+    YouTubeClient()
+
+    assert refreshed["called"] is True
+    mock_storage.save_credentials.assert_called_once()
+
+
+def test_youtube_client_uses_valid_credentials(monkeypatch):
     mock_cred = MagicMock()
     mock_cred.valid = True
     mock_cred.expired = False
 
-    # Mock the YouTube service
-    mock_service = MagicMock()
+    mock_storage = MagicMock()
+    mock_storage.get_credentials.return_value = mock_cred
 
-    with patch("spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage") as mock_storage_class:
-        with patch("spotify_yt_transfer.clients.youtube_client.build", return_value=mock_service):
-            # Setup mock storage instance
-            mock_storage = MagicMock()
-            mock_storage.get_credentials.return_value = mock_cred
-            mock_storage_class.return_value = mock_storage
+    monkeypatch.setattr(
+        "spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage",
+        lambda *args, **kwargs: mock_storage,
+    )
 
-            # Initialize client
-            client = YouTubeClient()
+    expected_service = MagicMock()
+    monkeypatch.setattr(
+        "spotify_yt_transfer.clients.youtube_client.build",
+        lambda *args, **kwargs: expected_service,
+    )
 
-            # Verify client is properly initialized
-            assert client.service is not None
-            assert client.service == mock_service
-            assert client.creds == mock_cred
+    client = YouTubeClient()
 
-            # Verify storage was used
-            mock_storage.get_credentials.assert_called_once()
+    assert client.service is expected_service
+    assert client.creds is mock_cred
+    mock_storage.get_credentials.assert_called_once()
