@@ -2,7 +2,6 @@
 
 import json
 import logging
-import pickle
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +19,7 @@ from tenacity import (
 )
 
 from spotify_yt_transfer.core.config import settings
+from spotify_yt_transfer.core.token_storage import YouTubeTokenStorage
 
 logger = logging.getLogger(__name__)
 
@@ -62,19 +62,25 @@ class YouTubeClient:
         """
         Initialize the YouTubeClient by authenticating and configuring the service.
 
+        Uses secure OS keyring for token storage. Automatically migrates
+        existing token.pickle file to keyring on first run.
+
         Args:
-            token_path: Path to store OAuth2 credentials pickle file
+            token_path: Path to legacy pickle file for migration (default: "token.pickle")
 
         Raises:
             Exception: If authentication fails
         """
-        logger.info("Initializing YouTubeClient")
+        logger.info("Initializing YouTubeClient with secure keyring storage")
 
-        self.token_path = Path(token_path)
+        self.token_storage = YouTubeTokenStorage(
+            username=settings.token_storage.username,
+            token_path=settings.token_storage.youtube_token_path,
+        )
         self.creds: Any | None = None
         self.service: Resource = self._authenticate()
 
-        logger.info("YouTubeClient initialized successfully")
+        logger.info("YouTubeClient initialized successfully with keyring token storage")
 
     def _authenticate(self) -> Resource:
         """
@@ -84,19 +90,22 @@ class YouTubeClient:
             Authorized YouTube API client resource
 
         Side Effects:
-            Writes new credentials to token pickle file if generated
+            Writes new credentials to OS keyring if generated
         """
         logger.info("Authenticating with YouTube API")
 
-        if self.token_path.exists():
-            logger.info(f"Found existing {self.token_path}. Loading credentials")
-            with self.token_path.open("rb") as token:
-                self.creds = pickle.load(token)
+        # Try to load credentials from keyring
+        self.creds = self.token_storage.get_credentials()
+
+        if self.creds:
+            logger.info("Loaded existing credentials from keyring")
 
         if not self.creds or not self.creds.valid:
             if self.creds and self.creds.expired and self.creds.refresh_token:
                 logger.info("Credentials expired. Refreshing token")
                 self.creds.refresh(GoogleAuthRequest())
+                # Save refreshed credentials
+                self.token_storage.save_credentials(self.creds)
             else:
                 logger.info("No valid credentials found. Initiating OAuth2 flow")
                 flow = InstalledAppFlow.from_client_config(
@@ -112,12 +121,11 @@ class YouTubeClient:
                     SCOPES,
                 )
                 self.creds = flow.run_local_server(port=8002)
-
-            with self.token_path.open("wb") as token:
-                pickle.dump(self.creds, token)
-            logger.info(f"New credentials saved to {self.token_path}")
+                # Save new credentials to keyring
+                self.token_storage.save_credentials(self.creds)
+                logger.info("New credentials saved to keyring")
         else:
-            logger.info(f"Using valid credentials from {self.token_path}")
+            logger.info("Using valid credentials from keyring")
 
         return build("youtube", "v3", credentials=self.creds)
 

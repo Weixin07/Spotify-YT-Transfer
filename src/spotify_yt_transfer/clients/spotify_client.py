@@ -15,6 +15,7 @@ from tenacity import (
 )
 
 from spotify_yt_transfer.core.config import settings
+from spotify_yt_transfer.core.token_storage import KeyringCacheHandler
 
 logger = logging.getLogger(__name__)
 
@@ -34,10 +35,19 @@ class SpotifyClient:
         """
         Initialize the SpotifyClient with OAuth2 authentication.
 
+        Uses secure OS keyring for token storage. Automatically migrates
+        existing .cache file to keyring on first run.
+
         Raises:
             SpotifyException: If authentication fails
         """
-        logger.info("Initializing SpotifyClient")
+        logger.info("Initializing SpotifyClient with secure keyring storage")
+
+        # Create cache handler with keyring backend
+        cache_handler = KeyringCacheHandler(
+            username=settings.token_storage.username,
+            cache_path=settings.token_storage.spotify_cache_path,
+        )
 
         self.sp = spotipy.Spotify(
             auth_manager=SpotifyOAuth(
@@ -45,9 +55,10 @@ class SpotifyClient:
                 client_secret=settings.spotify.client_secret,
                 redirect_uri=settings.spotify.redirect_uri,
                 scope="playlist-read-private user-library-read playlist-modify-private playlist-modify-public",
+                cache_handler=cache_handler,
             )
         )
-        logger.info("Spotify client initialized successfully")
+        logger.info("Spotify client initialized successfully with keyring token storage")
 
     @retry(
         stop=stop_after_attempt(settings.spotify.retry_attempts),

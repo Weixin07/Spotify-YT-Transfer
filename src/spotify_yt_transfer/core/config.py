@@ -74,6 +74,15 @@ class CoverConfig:
 
 
 @dataclass(frozen=True)
+class TokenStorageConfig:
+    """Token storage configuration."""
+
+    username: str
+    spotify_cache_path: str
+    youtube_token_path: str
+
+
+@dataclass(frozen=True)
 class Settings:
     """Application settings aggregating all configuration sections."""
 
@@ -85,6 +94,7 @@ class Settings:
     logging: LoggingConfig
     matching: MatchingConfig
     cover: CoverConfig
+    token_storage: TokenStorageConfig
 
 
 def _get_env(key: str, default: str | None = None, required: bool = False) -> str:
@@ -148,6 +158,13 @@ def _load_settings() -> Settings:
         http_timeout=int(_get_env("HTTP_REQUEST_TIMEOUT", "10")),
     )
 
+    # Token storage configuration
+    token_storage = TokenStorageConfig(
+        username=_get_env("TOKEN_STORAGE_USERNAME", "default"),
+        spotify_cache_path=_get_env("SPOTIFY_CACHE_PATH", ".cache"),
+        youtube_token_path=_get_env("YOUTUBE_TOKEN_PATH", "token.pickle"),
+    )
+
     return Settings(
         debug=debug,
         environment=environment,
@@ -157,6 +174,7 @@ def _load_settings() -> Settings:
         logging=logging_config,
         matching=matching,
         cover=cover,
+        token_storage=token_storage,
     )
 
 
