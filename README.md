@@ -96,6 +96,12 @@ Utilities
 - `GET /v1/youtube/playlist` - Find YouTube playlist by name
 - `POST /v1/split-liked-songs` - Split liked songs into playlists
 - `GET /v1/download-cover` - Download playlist cover image
+- `POST /v1/cache/invalidate` - Clear cached matches and YouTube search results
+
+?? Cache Management
+
+- Matched track and failure caches persist until you choose to clear them.
+- Use POST /v1/cache/invalidate to manually clear persisted matches, failed-track logs, or in-memory search results when playlists change.
 
 🧪 Testing
 

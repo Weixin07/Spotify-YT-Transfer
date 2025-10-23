@@ -6,16 +6,18 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import StreamingResponse
 
-from spotify_yt_transfer.api.dependencies import get_playlist_service, get_youtube_client
+from spotify_yt_transfer.api.dependencies import get_cache_service, get_playlist_service, get_youtube_client
 from spotify_yt_transfer.clients import YouTubeClient
 from spotify_yt_transfer.schemas import (
+    CacheInvalidateRequest,
+    CacheInvalidateResponse,
     PlaylistInfo,
     SplitLikedSongsParams,
     SplitLikedSongsResponse,
     YouTubePlaylistParams,
     YouTubePlaylistResponse,
 )
-from spotify_yt_transfer.services import PlaylistService
+from spotify_yt_transfer.services import CacheService, PlaylistService
 
 logger = logging.getLogger(__name__)
 
@@ -200,3 +202,64 @@ async def download_cover(
     except Exception as e:
         logger.error(f"Error downloading cover: {e}")
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.post(
+    "/cache/invalidate",
+    response_model=CacheInvalidateResponse,
+    summary="Invalidate cached data",
+    description=(
+        "Clears cached Spotify-to-YouTube matches, failed track logs, and the in-memory "
+        "YouTube search cache. Useful when playlists have changed or cached results appear stale."
+    ),
+    responses={
+        200: {
+            "description": "Caches invalidated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "matched_tracks_removed": 12,
+                        "failed_tracks_removed": 4,
+                        "youtube_cache_cleared": True,
+                    }
+                }
+            },
+        },
+    },
+)
+async def invalidate_cache(
+    options: CacheInvalidateRequest,
+    service: CacheService = Depends(get_cache_service),
+) -> CacheInvalidateResponse:
+    """
+    Invalidate cached data such as matched tracks and YouTube search results.
+
+    Args:
+        options: Cache invalidation options
+        service: Cache service dependency
+
+    Returns:
+        Summary of invalidation actions
+    """
+    logger.info(
+        "Invalidating caches (matched_tracks=%s, failed_tracks=%s, youtube=%s)",
+        options.matched_tracks,
+        options.failed_tracks,
+        options.youtube_search,
+    )
+
+    result = await run_in_threadpool(
+        service.invalidate,
+        options.youtube_search,
+        options.matched_tracks,
+        options.failed_tracks,
+    )
+
+    response = CacheInvalidateResponse(
+        matched_tracks_removed=result.matched_tracks_removed,
+        failed_tracks_removed=result.failed_tracks_removed,
+        youtube_cache_cleared=result.youtube_cache_cleared,
+    )
+
+    logger.info("Cache invalidation complete: %s", response.model_dump())
+    return response

@@ -17,12 +17,13 @@ def use_temp_db(tmp_path, monkeypatch):
 
     # Import new modules
     from spotify_yt_transfer.core import config
-    from spotify_yt_transfer.database import base, init_db, models
+    from spotify_yt_transfer.database import base, init_db, models, repository
 
     # Reload modules to pick up new DB_PATH
     importlib.reload(config)
     importlib.reload(base)
     importlib.reload(models)
+    importlib.reload(repository)
 
     # Initialize database with new structure
     init_db()

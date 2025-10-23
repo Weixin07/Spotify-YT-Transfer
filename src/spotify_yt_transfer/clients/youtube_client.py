@@ -441,3 +441,8 @@ class YouTubeClient:
 
         logger.info(f"Video {video_id} added to playlist {playlist_id} successfully")
         return response
+
+    def clear_search_cache(self) -> None:
+        """Clear in-memory YouTube search results cache."""
+        _youtube_search_cache.clear()
+        logger.debug("YouTube search cache cleared")

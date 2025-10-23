@@ -8,7 +8,13 @@ from sqlalchemy.orm import Session
 from spotify_yt_transfer.clients import SpotifyClient, YouTubeClient
 from spotify_yt_transfer.clients.errors import OAuthCredentialsMissing
 from spotify_yt_transfer.database import TrackRepository, get_db
-from spotify_yt_transfer.services import MigrationService, OAuthService, OAuthStateStore, PlaylistService
+from spotify_yt_transfer.services import (
+    CacheService,
+    MigrationService,
+    OAuthService,
+    OAuthStateStore,
+    PlaylistService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +124,23 @@ def get_oauth_service(db: Session = Depends(get_db)) -> OAuthService:
         OAuthService instance
     """
     return OAuthService(OAuthStateStore(db))
+
+
+def get_cache_service(
+    repo: TrackRepository = Depends(get_track_repository),
+    youtube: YouTubeClient = Depends(get_youtube_client),
+) -> CacheService:
+    """
+    FastAPI dependency for cache management service.
+
+    Args:
+        repo: Track repository dependency
+        youtube: YouTube client dependency
+
+    Returns:
+        CacheService instance
+    """
+    return CacheService(repo, youtube)
 
 
 def get_migration_service(

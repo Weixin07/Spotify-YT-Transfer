@@ -69,7 +69,7 @@ class TrackRepository:
             existing.album = album
             existing.youtube_id = youtube_id
             track = existing
-            logger.debug(f"Updated matched track: {spotify_id} -> {youtube_id}")
+            logger.debug("Updated matched track: %s -> %s", spotify_id, youtube_id)
         else:
             # Create new record
             track = MatchedTrack(
@@ -80,11 +80,23 @@ class TrackRepository:
                 youtube_id=youtube_id,
             )
             self.db.add(track)
-            logger.debug(f"Saved new matched track: {spotify_id} -> {youtube_id}")
+            logger.debug("Saved new matched track: %s -> %s", spotify_id, youtube_id)
 
         self.db.commit()
         self.db.refresh(track)
         return track
+
+    def delete_all_matched_tracks(self) -> int:
+        """
+        Remove all cached matched tracks.
+
+        Returns:
+            Number of records removed
+        """
+        deleted = self.db.query(MatchedTrack).delete()
+        self.db.commit()
+        logger.info("Removed %s matched track cache entries", deleted)
+        return deleted
 
     def get_all_matched_tracks(self) -> list[MatchedTrack]:
         """
@@ -132,7 +144,7 @@ class TrackRepository:
             existing.youtube_id = youtube_id
             existing.reason = reason
             track = existing
-            logger.debug(f"Updated failed track: {spotify_id}")
+            logger.debug("Updated failed track: %s", spotify_id)
         else:
             track = FailedTrack(
                 spotify_id=spotify_id,
@@ -140,7 +152,7 @@ class TrackRepository:
                 reason=reason,
             )
             self.db.add(track)
-            logger.debug(f"Recorded new failed track: {spotify_id}")
+            logger.debug("Recorded new failed track: %s", spotify_id)
 
         self.db.commit()
         self.db.refresh(track)
@@ -162,9 +174,21 @@ class TrackRepository:
         if failed:
             self.db.delete(failed)
             self.db.commit()
-            logger.debug(f"Cleared failed track: {spotify_id}")
+            logger.debug("Cleared failed track: %s", spotify_id)
             return True
         return False
+
+    def delete_all_failed_tracks(self) -> int:
+        """
+        Remove all failed track records.
+
+        Returns:
+            Number of records removed
+        """
+        deleted = self.db.query(FailedTrack).delete()
+        self.db.commit()
+        logger.info("Removed %s failed track records", deleted)
+        return deleted
 
     def get_all_failed_tracks(self) -> list[FailedTrack]:
         """
