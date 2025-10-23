@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get(
+@router.post(
     "/migrate",
     response_model=MigrateResponse,
     summary="Migrate Spotify playlist to YouTube",
@@ -52,7 +52,7 @@ router = APIRouter()
     },
 )
 async def migrate_playlist(
-    params: MigrateParams = Depends(),
+    params: MigrateParams,
     service: MigrationService = Depends(get_migration_service),
 ) -> dict[str, str]:
     """

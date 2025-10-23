@@ -203,7 +203,7 @@ Data Flow: Migration Endpoint
 
 ```
 1. HTTP Request
-   └─> FastAPI receives GET /v1/migrate
+   └─> FastAPI receives POST /v1/migrate with JSON body
 
 2. Validation & DI
    └─> Pydantic validates params

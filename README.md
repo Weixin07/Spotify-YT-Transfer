@@ -89,7 +89,7 @@ Authentication
 - `GET /v1/youtube/callback` - YouTube OAuth callback
 
 Migration
-- `GET /v1/migrate` - Migrate Spotify playlist to YouTube
+- `POST /v1/migrate` - Migrate Spotify playlist to YouTube
 - `GET /v1/check-missing` - Find missing/duplicate tracks
 
 Utilities

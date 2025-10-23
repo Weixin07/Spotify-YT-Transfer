@@ -38,6 +38,29 @@ def test_check_missing_endpoint():
         app.dependency_overrides.clear()
 
 
+def test_migrate_endpoint_accepts_post_body():
+    mock_service = MagicMock()
+    mock_service.migrate_playlist.return_value = {
+        "message": "Migration complete",
+        "youtube_playlist_id": "YT123",
+    }
+
+    app.dependency_overrides[dependencies.get_migration_service] = lambda: mock_service
+
+    try:
+        r = client.post(
+            "/v1/migrate",
+            json={"spotify_playlist_id": "SP123", "youtube_playlist_title": "Test Playlist"},
+        )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert r.status_code == 200
+    payload = r.json()
+    assert payload["youtube_playlist_id"] == "YT123"
+    mock_service.migrate_playlist.assert_called_once_with("Test Playlist", "SP123")
+
+
 def test_youtube_playlist_not_found():
     # Mock the YouTube client dependency
     mock_yt = MagicMock()
