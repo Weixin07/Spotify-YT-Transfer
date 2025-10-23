@@ -6,6 +6,7 @@ from googleapiclient.errors import HttpError
 
 from spotify_yt_transfer.clients import SpotifyClient, YouTubeClient
 from spotify_yt_transfer.database.repository import TrackRepository
+from spotify_yt_transfer.services.track_matcher import TrackMatcher
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class MigrationService:
 
     Handles the complete migration workflow including:
     - Fetching tracks from Spotify
-    - Searching for matching YouTube videos
+    - Searching for matching YouTube videos with fuzzy matching
     - Creating/finding YouTube playlists
     - Adding videos to playlists
     - Handling failures and retries
@@ -49,6 +50,7 @@ class MigrationService:
         spotify_client: SpotifyClient,
         youtube_client: YouTubeClient,
         repository: TrackRepository,
+        track_matcher: TrackMatcher | None = None,
     ):
         """
         Initialize the migration service.
@@ -57,10 +59,13 @@ class MigrationService:
             spotify_client: Spotify API client
             youtube_client: YouTube API client
             repository: Database repository for track caching
+            track_matcher: Optional TrackMatcher instance (creates default if None)
         """
         self.spotify = spotify_client
         self.youtube = youtube_client
         self.repo = repository
+        self.matcher = track_matcher or TrackMatcher()
+        logger.info(f"MigrationService initialized with fuzzy match threshold: {self.matcher.threshold}")
 
     def migrate_playlist(
         self,
@@ -130,9 +135,25 @@ class MigrationService:
                 video_id = matched_record.youtube_id
                 logger.info(f"Using cached match: {video_id}")
             else:
-                # Search YouTube
+                # Search YouTube with fuzzy matching
                 try:
-                    video_id = self.youtube.search_video(query)
+                    # Get multiple candidates from YouTube
+                    candidates = self.youtube.search_video_candidates(query, max_results=10)
+
+                    if not candidates:
+                        logger.warning(f"No YouTube candidates found for: {track_name}")
+                        continue
+
+                    logger.info(f"Found {len(candidates)} candidates for '{track_name}'")
+
+                    # Use fuzzy matching to find the best match
+                    spotify_track_info = {
+                        "name": track_name,
+                        "artist": artist,
+                        "album": track.get("album"),
+                    }
+                    video_id = self.matcher.match_track(spotify_track_info, candidates)
+
                     if video_id:
                         self.repo.save_matched_track(
                             spotify_id=spotify_unique_id,
@@ -141,9 +162,11 @@ class MigrationService:
                             youtube_id=video_id,
                             album=track.get("album"),
                         )
-                        logger.info(f"Cached new match: {video_id}")
+                        logger.info(f"Fuzzy matched and cached: {video_id}")
                     else:
-                        logger.warning(f"No matching video found for: {track_name}")
+                        logger.warning(
+                            f"No match above threshold ({self.matcher.threshold}) for: {track_name}"
+                        )
                         continue
                 except HttpError as e:
                     if _is_quota_exceeded(e):

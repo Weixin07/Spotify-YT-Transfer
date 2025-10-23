@@ -244,9 +244,80 @@ class YouTubeClient:
         retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
         before_sleep=before_sleep_log(logger, logging.WARNING),
     )
+    def search_video_candidates(self, query: str, max_results: int = 10) -> list[tuple[str, str]]:
+        """
+        Search YouTube and return multiple candidate videos for fuzzy matching.
+
+        Args:
+            query: Combined track name and artist string
+            max_results: Maximum number of candidates to return (default: 10)
+
+        Returns:
+            List of tuples [(video_id, video_title), ...] for fuzzy matching
+
+        Raises:
+            HttpError: If the YouTube API request fails (except quota errors)
+        """
+        logger.info(f"Searching YouTube candidates for query: '{query}' (max: {max_results})")
+
+        candidates: list[tuple[str, str]] = []
+        page_token: str | None = None
+
+        while len(candidates) < max_results:
+            request = self.service.search().list(
+                part="snippet",
+                q=query,
+                type="video",
+                videoCategoryId="10",  # Filter to Music category only
+                maxResults=min(5, max_results - len(candidates)),
+                pageToken=page_token,
+            )
+            response = request.execute()
+            items = response.get("items", [])
+
+            if not items:
+                logger.info("No more search results available")
+                break
+
+            # Collect all valid video candidates with their titles
+            for item in items:
+                video_id = item.get("id", {}).get("videoId")
+                title = item.get("snippet", {}).get("title", "")
+
+                if video_id and title:
+                    candidates.append((video_id, title))
+                    logger.debug(f"Candidate {len(candidates)}: {video_id} - {title}")
+                else:
+                    logger.warning("Candidate item missing 'videoId' or 'title'")
+
+                if len(candidates) >= max_results:
+                    break
+
+            # Check if there are more pages
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                logger.info("Reached end of search results")
+                break
+
+        logger.info(f"Found {len(candidates)} candidates for query: '{query}'")
+        return candidates
+
+    @cached(cache=_youtube_search_cache, key=lambda _self, query: query)
+    @retry(
+        stop=stop_after_attempt(settings.youtube.retry_attempts),
+        wait=wait_random_exponential(
+            multiplier=settings.youtube.retry_multiplier,
+            max=settings.youtube.retry_max,
+        ),
+        retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
     def search_video(self, query: str) -> str | None:
         """
         Search YouTube for the best matching music video for the given query.
+
+        NOTE: This is the legacy method that returns only the first result.
+        For better matching, use search_video_candidates() with TrackMatcher.
 
         Args:
             query: Combined track name and artist string

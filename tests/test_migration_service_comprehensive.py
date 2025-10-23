@@ -157,14 +157,14 @@ class TestMigratePlaylist:
 
         migration_service.migrate_playlist("Test Playlist", "sp_id")
 
-        # Should NOT search YouTube
-        youtube.search_video.assert_not_called()
+        # Should NOT search YouTube candidates when using cache
+        youtube.search_video_candidates.assert_not_called()
 
         # Should add the cached video
         youtube.add_video_to_playlist.assert_called_once_with("PL_test", "cached_vid_123")
 
     def test_migrate_searches_and_caches_new_track(self, migration_service, mock_clients):
-        """Test that new tracks are searched and cached."""
+        """Test that new tracks are searched with fuzzy matching and cached."""
         spotify, youtube, repo = mock_clients
 
         spotify.get_playlist_tracks.return_value = [
@@ -172,22 +172,26 @@ class TestMigratePlaylist:
         ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
-        youtube.search_video.return_value = "found_vid_456"
+        # Mock candidates for fuzzy matching (exact substring match will work)
+        youtube.search_video_candidates.return_value = [
+            ("found_vid_456", "NewSong NewArtist Official Video"),  # Contains exact substring
+            ("other_vid", "NewSong Cover by Someone"),
+        ]
 
         repo.get_matched_track.return_value = None
         repo.get_failed_track.return_value = None
 
         migration_service.migrate_playlist("Test Playlist", "sp_id")
 
-        # Should search YouTube
-        youtube.search_video.assert_called_once_with("NewSong NewArtist")
+        # Should search YouTube candidates
+        youtube.search_video_candidates.assert_called_once_with("NewSong NewArtist", max_results=10)
 
-        # Should cache the result
+        # Should cache the fuzzy-matched result
         repo.save_matched_track.assert_called_once_with(
             spotify_id="NewSong|NewArtist",
             song_name="NewSong",
             artist="NewArtist",
-            youtube_id="found_vid_456",
+            youtube_id="found_vid_456",  # Fuzzy matcher picks the best match
             album="NewAlbum",
         )
 
@@ -202,7 +206,7 @@ class TestMigratePlaylist:
         ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
-        youtube.search_video.return_value = "vid3"
+        youtube.search_video_candidates.return_value = [("vid3", "Song3 - Artist3")]
 
         repo.get_matched_track.return_value = None
         repo.get_failed_track.return_value = None
@@ -210,7 +214,7 @@ class TestMigratePlaylist:
         migration_service.migrate_playlist("Test Playlist", "sp_id")
 
         # Should only search for the valid track
-        youtube.search_video.assert_called_once_with("Song3 Artist3")
+        youtube.search_video_candidates.assert_called_once_with("Song3 Artist3", max_results=10)
 
     def test_migrate_handles_quota_exceeded_during_search(self, migration_service, mock_clients):
         """Test that quota exceeded during search raises exception."""
@@ -226,7 +230,7 @@ class TestMigratePlaylist:
         error_content = b'{"error": {"errors": [{"reason": "quotaExceeded"}]}}'
         quota_error = HttpError(resp=mock_resp, content=error_content)
 
-        youtube.search_video.side_effect = quota_error
+        youtube.search_video_candidates.side_effect = quota_error
         repo.get_matched_track.return_value = None
         repo.get_failed_track.return_value = None
 
@@ -240,7 +244,7 @@ class TestMigratePlaylist:
         spotify.get_playlist_tracks.return_value = [{"name": "Song1", "artist": "Artist1"}]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
-        youtube.search_video.return_value = "vid1"
+        youtube.search_video_candidates.return_value = [("vid1", "Song1 Artist1 Official")]  # Exact substring match
 
         repo.get_matched_track.return_value = None
         repo.get_failed_track.return_value = None
@@ -269,7 +273,7 @@ class TestMigratePlaylist:
         spotify.get_playlist_tracks.return_value = [{"name": "Song1", "artist": "Artist1"}]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
-        youtube.search_video.return_value = "vid1"
+        # No need to mock search_video_candidates since we're using cached track
 
         # Mock previously failed track
         cached = MagicMock()
@@ -289,7 +293,7 @@ class TestIntegrationScenarios:
     """Test complete migration scenarios."""
 
     def test_full_migration_workflow(self, migration_service, mock_clients):
-        """Test a complete successful migration."""
+        """Test a complete successful migration with fuzzy matching."""
         spotify, youtube, repo = mock_clients
 
         # Setup: 3 tracks
@@ -303,8 +307,13 @@ class TestIntegrationScenarios:
         youtube.find_playlist_by_name.return_value = None
         youtube.create_playlist.return_value = "PL_new"
 
-        # All tracks found
-        youtube.search_video.side_effect = ["vid1", "vid2", "vid3"]
+        # Return candidates for fuzzy matching (each track gets matching candidates)
+        # Use exact substring matches for TrackMatcher's Stage 1 matching
+        youtube.search_video_candidates.side_effect = [
+            [("vid1", "Track1 Artist1 Official"), ("other1", "Track1 Cover")],
+            [("vid2", "Track2 Artist2 Music Video"), ("other2", "Track2 Remix")],
+            [("vid3", "Track3 Artist3 Official Music Video"), ("other3", "Track3 Live")],
+        ]
 
         # No cached tracks
         repo.get_matched_track.return_value = None
@@ -316,11 +325,11 @@ class TestIntegrationScenarios:
         assert result["youtube_playlist_id"] == "PL_new"
         assert result["message"] == "Migration complete"
 
-        # All tracks should be searched
-        assert youtube.search_video.call_count == 3
+        # All tracks should be searched with candidates
+        assert youtube.search_video_candidates.call_count == 3
 
-        # All tracks should be cached
+        # All tracks should be cached (fuzzy matcher picks best match)
         assert repo.save_matched_track.call_count == 3
 
-        # All videos should be added
+        # All videos should be added to playlist
         assert youtube.add_video_to_playlist.call_count == 3
