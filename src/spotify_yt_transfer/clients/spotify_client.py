@@ -85,6 +85,7 @@ class SpotifyClient:
                 track = item.get("track", {})
                 if track:
                     track_info: TrackInfo = {
+                        "id": track.get("id"),  # Actual Spotify track ID
                         "name": track.get("name"),
                         "artist": ", ".join(artist["name"] for artist in track.get("artists", [])),
                         "album": track.get("album", {}).get("name"),
@@ -92,7 +93,7 @@ class SpotifyClient:
                     }
                     tracks.append(track_info)
                     logger.debug(
-                        f"Added track {idx} on page {page}: '{track_info['name']}' by {track_info['artist']}"
+                        f"Added track {idx} on page {page}: '{track_info['name']}' by {track_info['artist']} (ID: {track_info['id']})"
                     )
                 else:
                     logger.warning(f"Item {idx} on page {page} has no track information")
@@ -140,6 +141,7 @@ class SpotifyClient:
                 track = item.get("track", {})
                 if track:
                     track_info: TrackInfo = {
+                        "id": track.get("id"),  # Actual Spotify track ID
                         "name": track.get("name"),
                         "artist": ", ".join(a["name"] for a in track.get("artists", [])),
                         "album": track.get("album", {}).get("name"),
@@ -149,7 +151,7 @@ class SpotifyClient:
                         track_info["uri"] = track.get("uri")
                     tracks.append(track_info)
                     logger.debug(
-                        f"Added liked song {idx} on page {page}: '{track_info['name']}' by {track_info['artist']}"
+                        f"Added liked song {idx} on page {page}: '{track_info['name']}' by {track_info['artist']} (ID: {track_info['id']})"
                     )
                 else:
                     logger.warning(

@@ -115,21 +115,25 @@ class MigrationService:
         failed_attempts: list[tuple[str, str, str]] = []
 
         for idx, track in enumerate(tracks, start=1):
+            spotify_id = track.get("id")
             track_name = track.get("name")
             artist = track.get("artist")
 
-            if not track_name or not artist:
-                logger.warning(f"Skipping track {idx} - missing name or artist")
+            if not spotify_id:
+                logger.warning(f"Skipping track {idx} - missing Spotify ID")
                 continue
 
-            logger.info(f"Processing {idx}/{len(tracks)}: {track_name} by {artist}")
+            if not track_name or not artist:
+                logger.warning(f"Skipping track {idx} (ID: {spotify_id}) - missing name or artist")
+                continue
 
-            spotify_unique_id = f"{track_name}|{artist}"
+            logger.info(f"Processing {idx}/{len(tracks)}: {track_name} by {artist} (ID: {spotify_id})")
+
             query = f"{track_name} {artist}"
 
-            # Check cache
-            matched_record = self.repo.get_matched_track(spotify_unique_id)
-            failed_record = self.repo.get_failed_track(spotify_unique_id)
+            # Check cache using real Spotify ID
+            matched_record = self.repo.get_matched_track(spotify_id)
+            failed_record = self.repo.get_failed_track(spotify_id)
 
             if matched_record:
                 video_id = matched_record.youtube_id
@@ -156,7 +160,7 @@ class MigrationService:
 
                     if video_id:
                         self.repo.save_matched_track(
-                            spotify_id=spotify_unique_id,
+                            spotify_id=spotify_id,  # Use real Spotify ID
                             song_name=track_name,
                             artist=artist,
                             youtube_id=video_id,
@@ -185,7 +189,7 @@ class MigrationService:
 
                     # Clear from failed tracks if it was previously failed
                     if failed_record:
-                        self.repo.clear_failed_track(spotify_unique_id)
+                        self.repo.clear_failed_track(spotify_id)
 
                 except HttpError as e:
                     if _is_quota_exceeded(e):
@@ -195,10 +199,10 @@ class MigrationService:
                         ) from e
 
                     logger.error(f"Failed to add video {video_id}: {e}")
-                    failed_attempts.append((spotify_unique_id, video_id, "add_failed"))
+                    failed_attempts.append((spotify_id, video_id, "add_failed"))
                 except Exception as ex:
                     logger.error(f"Unexpected error adding {video_id}: {ex}")
-                    failed_attempts.append((spotify_unique_id, video_id, "unknown_error"))
+                    failed_attempts.append((spotify_id, video_id, "unknown_error"))
 
         # 4. Record failures
         for spotify_id, yid, reason in failed_attempts:

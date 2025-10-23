@@ -36,10 +36,10 @@ class MigrateResponse(BaseModel):
 class MissingTrack(BaseModel):
     """Track that exists in Spotify playlist but not in YouTube playlist."""
 
-    unique_id: str = Field(
+    spotify_id: str = Field(
         ...,
-        description="Unique combination of track name and artist",
-        examples=["Shape of You|Ed Sheeran"],
+        description="Unique Spotify track ID",
+        examples=["11dFghVXANMlKmJXsNCbNl"],
     )
     track_name: str = Field(
         ...,
@@ -66,10 +66,10 @@ class MissingTrack(BaseModel):
 class DuplicateTrack(BaseModel):
     """Track that appears multiple times in the playlist."""
 
-    unique_id: str = Field(
+    spotify_id: str = Field(
         ...,
-        description="Unique ID for track to detect duplicates",
-        examples=["Shape of You|Ed Sheeran"],
+        description="Spotify track ID (duplicates should be rare with real IDs)",
+        examples=["11dFghVXANMlKmJXsNCbNl"],
     )
     count: int = Field(
         ...,

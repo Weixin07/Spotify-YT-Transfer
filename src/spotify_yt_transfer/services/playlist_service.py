@@ -71,22 +71,23 @@ class PlaylistService:
         unavailable_tracks: list[dict[str, Any]] = []
 
         for track in spotify_tracks:
-            # Check for essential metadata
-            if not track.get("name") or not track.get("artist"):
+            spotify_id = track.get("id")
+
+            # Check for essential metadata including Spotify ID
+            if not spotify_id or not track.get("name") or not track.get("artist"):
                 unavailable_tracks.append(track)
                 continue
 
-            unique_id = f"{track['name']}|{track['artist']}"
-            unique_ids.append(unique_id)
+            unique_ids.append(spotify_id)
 
-            # Keep first occurrence for duplicates
-            if unique_id not in track_mapping:
-                track_mapping[unique_id] = track
+            # Keep first occurrence for duplicates (though Spotify IDs should be unique)
+            if spotify_id not in track_mapping:
+                track_mapping[spotify_id] = track
 
-        # Identify duplicates
+        # Identify duplicates (Note: With real Spotify IDs, duplicates should be rare)
         counter = Counter(unique_ids)
         duplicate_tracks = [
-            {"unique_id": uid, "count": cnt} for uid, cnt in counter.items() if cnt > 1
+            {"spotify_id": sid, "count": cnt} for sid, cnt in counter.items() if cnt > 1
         ]
 
         # Retrieve YouTube playlist video IDs
@@ -96,15 +97,15 @@ class PlaylistService:
         # Find missing tracks
         missing_tracks: list[dict[str, Any]] = []
 
-        for unique_id, track in track_mapping.items():
-            matched_record = self.repo.get_matched_track(unique_id)
+        for spotify_id, track in track_mapping.items():
+            matched_record = self.repo.get_matched_track(spotify_id)
 
             if matched_record:
                 youtube_id = matched_record.youtube_id
                 if youtube_id not in youtube_video_ids:
                     missing_tracks.append(
                         {
-                            "unique_id": unique_id,
+                            "spotify_id": spotify_id,  # Use real Spotify ID
                             "track_name": track["name"],
                             "artist": track["artist"],
                             "album": track.get("album", ""),
@@ -115,7 +116,7 @@ class PlaylistService:
                 # No match exists - consider it missing
                 missing_tracks.append(
                     {
-                        "unique_id": unique_id,
+                        "spotify_id": spotify_id,  # Use real Spotify ID
                         "track_name": track["name"],
                         "artist": track["artist"],
                         "album": track.get("album", ""),

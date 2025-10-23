@@ -43,8 +43,8 @@ class TestFindMissingTracks:
 
         # Mock Spotify tracks
         spotify.get_playlist_tracks.return_value = [
-            {"name": "Song1", "artist": "Artist1", "album": "Album1"},
-            {"name": "Song2", "artist": "Artist2", "album": "Album2"},
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1", "album": "Album1"},
+            {"id": "spotify_2", "name": "Song2", "artist": "Artist2", "album": "Album2"},
         ]
 
         # Mock YouTube videos
@@ -68,8 +68,8 @@ class TestFindMissingTracks:
         spotify, youtube, repo = mock_clients
 
         spotify.get_playlist_tracks.return_value = [
-            {"name": "Song1", "artist": "Artist1", "album": "Album1"},
-            {"name": "Song2", "artist": "Artist2", "album": "Album2"},
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1", "album": "Album1"},
+            {"id": "spotify_2", "name": "Song2", "artist": "Artist2", "album": "Album2"},
         ]
 
         # Only one video in YouTube playlist
@@ -94,11 +94,11 @@ class TestFindMissingTracks:
         """Test identifying duplicate tracks."""
         spotify, youtube, repo = mock_clients
 
-        # Same track appears twice
+        # Same track appears twice (same Spotify ID)
         spotify.get_playlist_tracks.return_value = [
-            {"name": "Song1", "artist": "Artist1", "album": "Album1"},
-            {"name": "Song1", "artist": "Artist1", "album": "Album1"},  # Duplicate
-            {"name": "Song2", "artist": "Artist2", "album": "Album2"},
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1", "album": "Album1"},
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1", "album": "Album1"},  # Duplicate
+            {"id": "spotify_2", "name": "Song2", "artist": "Artist2", "album": "Album2"},
         ]
 
         youtube.get_playlist_items.return_value = ["yt1", "yt2"]
@@ -113,8 +113,8 @@ class TestFindMissingTracks:
         result = playlist_service.find_missing_tracks("sp_playlist", "yt_playlist")
 
         assert len(result["duplicate_tracks"]) >= 1
-        # Find the Song1 duplicate
-        song1_dup = next((d for d in result["duplicate_tracks"] if "Song1" in d["unique_id"]), None)
+        # Find the Song1 duplicate using spotify_id field
+        song1_dup = next((d for d in result["duplicate_tracks"] if d["spotify_id"] == "spotify_1"), None)
         assert song1_dup is not None
         assert song1_dup["count"] == 2
 
@@ -123,9 +123,9 @@ class TestFindMissingTracks:
         spotify, youtube, repo = mock_clients
 
         spotify.get_playlist_tracks.return_value = [
-            {"name": None, "artist": "Artist1", "album": "Album1"},  # Missing name
-            {"name": "Song2", "artist": None, "album": "Album2"},  # Missing artist
-            {"name": "Song3", "artist": "Artist3", "album": "Album3"},  # Valid
+            {"id": "spotify_1", "name": None, "artist": "Artist1", "album": "Album1"},  # Missing name
+            {"id": "spotify_2", "name": "Song2", "artist": None, "album": "Album2"},  # Missing artist
+            {"id": "spotify_3", "name": "Song3", "artist": "Artist3", "album": "Album3"},  # Valid
         ]
 
         youtube.get_playlist_items.return_value = ["yt3"]
@@ -143,7 +143,7 @@ class TestFindMissingTracks:
         spotify, youtube, repo = mock_clients
 
         spotify.get_playlist_tracks.return_value = [
-            {"name": "Song1", "artist": "Artist1", "album": "Album1"}
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1", "album": "Album1"}
         ]
 
         youtube.get_playlist_items.return_value = []
@@ -393,25 +393,25 @@ class TestIntegrationScenarios:
 
         # Setup: 5 Spotify tracks
         spotify.get_playlist_tracks.return_value = [
-            {"name": "Track1", "artist": "Artist1", "album": "Album1"},
-            {"name": "Track2", "artist": "Artist2", "album": "Album2"},
-            {"name": "Track3", "artist": "Artist3", "album": "Album3"},
-            {"name": "Track3", "artist": "Artist3", "album": "Album3"},  # Duplicate
-            {"name": "Track4", "artist": "Artist4", "album": "Album4"},
+            {"id": "spotify_1", "name": "Track1", "artist": "Artist1", "album": "Album1"},
+            {"id": "spotify_2", "name": "Track2", "artist": "Artist2", "album": "Album2"},
+            {"id": "spotify_3", "name": "Track3", "artist": "Artist3", "album": "Album3"},
+            {"id": "spotify_3", "name": "Track3", "artist": "Artist3", "album": "Album3"},  # Duplicate
+            {"id": "spotify_4", "name": "Track4", "artist": "Artist4", "album": "Album4"},
         ]
 
         # YouTube has only 3 videos
         youtube.get_playlist_items.return_value = ["yt1", "yt2", "yt3", "yt3"]
 
-        # Mock matches
-        def get_match(unique_id):
+        # Mock matches using real Spotify IDs
+        def get_match(spotify_id):
             match_map = {
-                "Track1|Artist1": MagicMock(youtube_id="yt1"),
-                "Track2|Artist2": MagicMock(youtube_id="yt2"),
-                "Track3|Artist3": MagicMock(youtube_id="yt3"),
-                "Track4|Artist4": MagicMock(youtube_id="yt4"),  # Missing
+                "spotify_1": MagicMock(youtube_id="yt1"),
+                "spotify_2": MagicMock(youtube_id="yt2"),
+                "spotify_3": MagicMock(youtube_id="yt3"),
+                "spotify_4": MagicMock(youtube_id="yt4"),  # Missing
             }
-            return match_map.get(unique_id)
+            return match_map.get(spotify_id)
 
         repo.get_matched_track.side_effect = get_match
 

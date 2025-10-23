@@ -145,7 +145,9 @@ class TestMigratePlaylist:
         """Test that cached tracks are used instead of searching."""
         spotify, youtube, repo = mock_clients
 
-        spotify.get_playlist_tracks.return_value = [{"name": "Song1", "artist": "Artist1"}]
+        spotify.get_playlist_tracks.return_value = [
+            {"id": "spotify_track_1", "name": "Song1", "artist": "Artist1"}
+        ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
 
@@ -168,7 +170,7 @@ class TestMigratePlaylist:
         spotify, youtube, repo = mock_clients
 
         spotify.get_playlist_tracks.return_value = [
-            {"name": "NewSong", "artist": "NewArtist", "album": "NewAlbum"}
+            {"id": "spotify_new", "name": "NewSong", "artist": "NewArtist", "album": "NewAlbum"}
         ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
@@ -186,9 +188,9 @@ class TestMigratePlaylist:
         # Should search YouTube candidates
         youtube.search_video_candidates.assert_called_once_with("NewSong NewArtist", max_results=10)
 
-        # Should cache the fuzzy-matched result
+        # Should cache the fuzzy-matched result using real Spotify ID
         repo.save_matched_track.assert_called_once_with(
-            spotify_id="NewSong|NewArtist",
+            spotify_id="spotify_new",  # Real Spotify ID
             song_name="NewSong",
             artist="NewArtist",
             youtube_id="found_vid_456",  # Fuzzy matcher picks the best match
@@ -200,9 +202,9 @@ class TestMigratePlaylist:
         spotify, youtube, repo = mock_clients
 
         spotify.get_playlist_tracks.return_value = [
-            {"name": None, "artist": "Artist1"},  # Missing name
-            {"name": "Song2", "artist": None},  # Missing artist
-            {"name": "Song3", "artist": "Artist3"},  # Valid
+            {"id": "spotify_1", "name": None, "artist": "Artist1"},  # Missing name
+            {"id": "spotify_2", "name": "Song2", "artist": None},  # Missing artist
+            {"id": "spotify_3", "name": "Song3", "artist": "Artist3"},  # Valid
         ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
@@ -220,7 +222,9 @@ class TestMigratePlaylist:
         """Test that quota exceeded during search raises exception."""
         spotify, youtube, repo = mock_clients
 
-        spotify.get_playlist_tracks.return_value = [{"name": "Song1", "artist": "Artist1"}]
+        spotify.get_playlist_tracks.return_value = [
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1"}
+        ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
 
@@ -241,7 +245,9 @@ class TestMigratePlaylist:
         """Test that failed tracks are retried."""
         spotify, youtube, repo = mock_clients
 
-        spotify.get_playlist_tracks.return_value = [{"name": "Song1", "artist": "Artist1"}]
+        spotify.get_playlist_tracks.return_value = [
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1"}
+        ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
         youtube.search_video_candidates.return_value = [("vid1", "Song1 Artist1 Official")]  # Exact substring match
@@ -270,7 +276,9 @@ class TestMigratePlaylist:
         """Test that previously failed tracks are cleared on success."""
         spotify, youtube, repo = mock_clients
 
-        spotify.get_playlist_tracks.return_value = [{"name": "Song1", "artist": "Artist1"}]
+        spotify.get_playlist_tracks.return_value = [
+            {"id": "spotify_1", "name": "Song1", "artist": "Artist1"}
+        ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
         # No need to mock search_video_candidates since we're using cached track
@@ -285,8 +293,8 @@ class TestMigratePlaylist:
 
         migration_service.migrate_playlist("Test Playlist", "sp_id")
 
-        # Should clear the old failure
-        repo.clear_failed_track.assert_called_once_with("Song1|Artist1")
+        # Should clear the old failure using real Spotify ID
+        repo.clear_failed_track.assert_called_once_with("spotify_1")
 
 
 class TestIntegrationScenarios:
@@ -296,11 +304,11 @@ class TestIntegrationScenarios:
         """Test a complete successful migration with fuzzy matching."""
         spotify, youtube, repo = mock_clients
 
-        # Setup: 3 tracks
+        # Setup: 3 tracks with real Spotify IDs
         spotify.get_playlist_tracks.return_value = [
-            {"name": "Track1", "artist": "Artist1", "album": "Album1"},
-            {"name": "Track2", "artist": "Artist2", "album": "Album2"},
-            {"name": "Track3", "artist": "Artist3", "album": "Album3"},
+            {"id": "spotify_track_1", "name": "Track1", "artist": "Artist1", "album": "Album1"},
+            {"id": "spotify_track_2", "name": "Track2", "artist": "Artist2", "album": "Album2"},
+            {"id": "spotify_track_3", "name": "Track3", "artist": "Artist3", "album": "Album3"},
         ]
 
         # Playlist doesn't exist
