@@ -201,6 +201,27 @@ async def check_missing_tracks(
         )
         return CheckMissingResponse(**result)
 
-    except Exception as e:
-        logger.error(f"Error checking missing tracks: {e}")
-        raise HTTPException(status_code=400, detail=str(e)) from e
+    except ValidationServiceError as exc:
+        logger.warning("Validation error checking missing tracks: %s", exc)
+        raise HTTPException(
+            status_code=422,
+            detail=_error_payload(exc.code, str(exc), exc.details),
+        ) from exc
+    except SpotifyException as exc:
+        logger.error("Spotify API error checking missing tracks: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail=_error_payload("external_service_error", "Spotify API failure", {"reason": str(exc)}),
+        ) from exc
+    except ServiceError as exc:
+        logger.error("Service error checking missing tracks: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=_error_payload(exc.code, str(exc), exc.details),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error while checking missing tracks")
+        raise HTTPException(
+            status_code=500,
+            detail=_error_payload("unexpected_error", "Unexpected error checking missing tracks"),
+        ) from exc

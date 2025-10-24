@@ -8,6 +8,7 @@ from typing import Any
 
 import requests
 from PIL import Image, ImageOps
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from spotify_yt_transfer.clients import SpotifyClient, YouTubeClient
 from spotify_yt_transfer.core.config import settings
@@ -223,6 +224,23 @@ class PlaylistService:
 
         return {"total_tracks": total_tracks, "playlists_created": playlists_created}
 
+    @retry(
+        stop=stop_after_attempt(settings.resilience.retries),
+        wait=wait_exponential(
+            multiplier=settings.resilience.backoff_factor,
+            min=settings.resilience.min_backoff,
+            max=settings.resilience.max_backoff,
+        ),
+        retry_error_callback=lambda retry_state: logger.error(
+            f"Failed to download image after {retry_state.attempt_number} attempts"
+        ),
+    )
+    def _download_image_with_retry(self, image_url: str) -> bytes:
+        """Download an image with retry logic."""
+        response = requests.get(image_url, timeout=settings.cover.http_timeout)
+        response.raise_for_status()
+        return response.content
+
     def download_playlist_cover(
         self,
         playlist_id: str,
@@ -274,9 +292,7 @@ class PlaylistService:
             )
             logger.info(f"Selected image {chosen_image.get('width')}x{chosen_image.get('height')}")
             image_url = chosen_image["url"]
-            response = requests.get(image_url, timeout=settings.cover.http_timeout)
-            response.raise_for_status()
-            image_bytes = response.content
+            image_bytes = self._download_image_with_retry(image_url)
 
         else:
             # No image meets minimum - use largest and enhance
@@ -286,11 +302,10 @@ class PlaylistService:
                 f"{chosen_image.get('width')}x{chosen_image.get('height')}"
             )
             image_url = chosen_image["url"]
-            response = requests.get(image_url, timeout=settings.cover.http_timeout)
-            response.raise_for_status()
+            image_bytes = self._download_image_with_retry(image_url)
 
             # Enhance image to desired size
-            original_image = Image.open(BytesIO(response.content))
+            original_image = Image.open(BytesIO(image_bytes))
             enhanced_image = ImageOps.fit(
                 original_image,
                 (settings.cover.enhance_size, settings.cover.enhance_size),
