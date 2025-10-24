@@ -26,8 +26,11 @@ logger = logging.getLogger(__name__)
 # YouTube API scopes
 SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
-# 15 minute TTL cache for search results (max 1000 entries)
-_youtube_search_cache: TTLCache = TTLCache(maxsize=1000, ttl=15 * 60)
+# Dedicated 15 minute TTL caches by data type to avoid key collisions across methods
+_playlist_name_cache: TTLCache = TTLCache(maxsize=100, ttl=15 * 60)
+_playlist_items_cache: TTLCache = TTLCache(maxsize=100, ttl=15 * 60)
+_video_candidates_cache: TTLCache = TTLCache(maxsize=1000, ttl=15 * 60)
+_video_search_cache: TTLCache = TTLCache(maxsize=1000, ttl=15 * 60)
 
 
 def _is_quota_exceeded(error: HttpError) -> bool:
@@ -120,7 +123,7 @@ class YouTubeClient:
 
         return build("youtube", "v3", credentials=self.creds)
 
-    @cached(cache=_youtube_search_cache, key=lambda _self, playlist_name: playlist_name)
+    @cached(cache=_playlist_name_cache, key=lambda _self, playlist_name: playlist_name)
     @retry(
         stop=stop_after_attempt(settings.youtube.retry_attempts),
         wait=wait_random_exponential(
@@ -174,7 +177,7 @@ class YouTubeClient:
         logger.info("No matching playlist found")
         return None
 
-    @cached(cache=_youtube_search_cache, key=lambda _self, playlist_id: playlist_id)
+    @cached(cache=_playlist_items_cache, key=lambda _self, playlist_id: playlist_id)
     @retry(
         stop=stop_after_attempt(settings.youtube.retry_attempts),
         wait=wait_random_exponential(
@@ -233,7 +236,7 @@ class YouTubeClient:
         logger.info(f"Total videos retrieved: {len(video_ids)}")
         return video_ids
 
-    @cached(cache=_youtube_search_cache, key=lambda _self, query: query)
+    @cached(cache=_video_candidates_cache, key=lambda _self, query: query)
     @retry(
         stop=stop_after_attempt(settings.youtube.retry_attempts),
         wait=wait_random_exponential(
@@ -301,7 +304,7 @@ class YouTubeClient:
         logger.info(f"Found {len(candidates)} candidates for query: '{query}'")
         return candidates
 
-    @cached(cache=_youtube_search_cache, key=lambda _self, query: query)
+    @cached(cache=_video_search_cache, key=lambda _self, query: query)
     @retry(
         stop=stop_after_attempt(settings.youtube.retry_attempts),
         wait=wait_random_exponential(
@@ -443,6 +446,7 @@ class YouTubeClient:
         return response
 
     def clear_search_cache(self) -> None:
-        """Clear in-memory YouTube search results cache."""
-        _youtube_search_cache.clear()
-        logger.debug("YouTube search cache cleared")
+        """Clear in-memory YouTube search results caches."""
+        _video_candidates_cache.clear()
+        _video_search_cache.clear()
+        logger.debug("YouTube search caches cleared")
