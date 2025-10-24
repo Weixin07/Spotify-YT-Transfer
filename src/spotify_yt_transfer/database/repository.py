@@ -25,6 +25,14 @@ class TrackRepository:
         """
         self.db = db
 
+    def commit(self) -> None:
+        """Explicitly commit the underlying session."""
+        self.db.commit()
+
+    def rollback(self) -> None:
+        """Explicitly roll back the underlying session."""
+        self.db.rollback()
+
     # ===== MatchedTrack Operations =====
 
     def get_matched_track(self, spotify_id: str) -> MatchedTrack | None:
@@ -82,8 +90,7 @@ class TrackRepository:
             self.db.add(track)
             logger.debug("Saved new matched track: %s -> %s", spotify_id, youtube_id)
 
-        self.db.commit()
-        self.db.refresh(track)
+        self.db.flush()
         return track
 
     def delete_all_matched_tracks(self) -> int:
@@ -94,7 +101,7 @@ class TrackRepository:
             Number of records removed
         """
         deleted = self.db.query(MatchedTrack).delete()
-        self.db.commit()
+        self.db.flush()
         logger.info("Removed %s matched track cache entries", deleted)
         return deleted
 
@@ -154,8 +161,7 @@ class TrackRepository:
             self.db.add(track)
             logger.debug("Recorded new failed track: %s", spotify_id)
 
-        self.db.commit()
-        self.db.refresh(track)
+        self.db.flush()
         return track
 
     def clear_failed_track(self, spotify_id: str) -> bool:
@@ -173,7 +179,7 @@ class TrackRepository:
         failed = self.get_failed_track(spotify_id)
         if failed:
             self.db.delete(failed)
-            self.db.commit()
+            self.db.flush()
             logger.debug("Cleared failed track: %s", spotify_id)
             return True
         return False
@@ -186,7 +192,7 @@ class TrackRepository:
             Number of records removed
         """
         deleted = self.db.query(FailedTrack).delete()
-        self.db.commit()
+        self.db.flush()
         logger.info("Removed %s failed track records", deleted)
         return deleted
 
