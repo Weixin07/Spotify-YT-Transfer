@@ -1,22 +1,38 @@
 """Playlist migration endpoints."""
 
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
+from googleapiclient.errors import HttpError
+from spotipy.client import SpotifyException
 
 from spotify_yt_transfer.api.dependencies import get_migration_service, get_playlist_service
+from spotify_yt_transfer.clients.errors import OAuthCredentialsMissing
 from spotify_yt_transfer.schemas import (
     CheckMissingParams,
     CheckMissingResponse,
     MigrateParams,
     MigrateResponse,
 )
-from spotify_yt_transfer.services import MigrationService, PlaylistService
+from spotify_yt_transfer.services import (
+    MigrationService,
+    PlaylistService,
+    QuotaExceededError,
+    ServiceError,
+)
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _error_payload(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {"code": code, "message": message}
+    if details:
+        payload["details"] = details
+    return payload
 
 
 @router.post(
@@ -86,15 +102,36 @@ async def migrate_playlist(
         )
         return result
 
-    except Exception as e:
-        error_msg = str(e)
-        logger.error(f"Migration failed: {error_msg}")
-
-        # Check for quota exceeded
-        if "quota exceeded" in error_msg.lower():
-            raise HTTPException(status_code=429, detail=error_msg) from e
-
-        raise HTTPException(status_code=400, detail=error_msg) from e
+    except QuotaExceededError as exc:
+        logger.warning("Migration aborted due to quota exhaustion: %s", exc)
+        raise HTTPException(
+            status_code=429,
+            detail=_error_payload(exc.code, str(exc), exc.details),
+        ) from exc
+    except OAuthCredentialsMissing as exc:
+        logger.warning("Migration requires refreshed OAuth credentials: %s", exc)
+        raise HTTPException(
+            status_code=401,
+            detail=_error_payload("oauth_credentials_missing", str(exc)),
+        ) from exc
+    except (SpotifyException, HttpError) as exc:
+        logger.error("Upstream API failure during migration: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=502,
+            detail=_error_payload("external_service_error", "Upstream API failure", {"reason": str(exc)}),
+        ) from exc
+    except ServiceError as exc:
+        logger.error("Migration service error: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=_error_payload(exc.code, str(exc), exc.details),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected migration failure")
+        raise HTTPException(
+            status_code=500,
+            detail=_error_payload("unexpected_error", "Unexpected migration failure"),
+        ) from exc
 
 
 @router.get(

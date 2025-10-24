@@ -4,13 +4,21 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from spotipy.client import SpotifyException
 
 from spotify_yt_transfer.api.dependencies import get_oauth_service
-from spotify_yt_transfer.services import OAuthService, OAuthStateError
+from spotify_yt_transfer.services import OAuthService, OAuthStateError, ServiceError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _error_payload(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {"code": code, "message": message}
+    if details:
+        payload["details"] = details
+    return payload
 
 
 def _extract_code_and_state(request: Request) -> tuple[str, str]:
@@ -33,14 +41,18 @@ def _extract_code_and_state(request: Request) -> tuple[str, str]:
         logger.error("OAuth callback missing 'code' parameter")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing code parameter in callback.",
+            detail=_error_payload("missing_parameter", "Missing code parameter in callback.", {"parameter": "code"}),
         )
 
     if not state:
         logger.error("OAuth callback missing 'state' parameter")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Missing state parameter in callback.",
+            detail=_error_payload(
+                "missing_parameter",
+                "Missing state parameter in callback.",
+                {"parameter": "state"},
+            ),
         )
 
     return code, state
@@ -114,11 +126,27 @@ async def spotify_callback(
         token_info = oauth.exchange_spotify_code(code=code, state=state)
     except OAuthStateError as exc:
         logger.warning("Spotify OAuth state validation failed: %s", exc)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    except Exception as exc:  # pragma: no cover - defensive logging
-        logger.error("Spotify authentication failed: %s", exc)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Authentication failed."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_error_payload("invalid_state", str(exc)),
+        ) from exc
+    except SpotifyException as exc:
+        logger.error("Spotify authentication failed due to upstream error: %s", exc, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=_error_payload("spotify_api_error", "Spotify authentication failed", {"reason": str(exc)}),
+        ) from exc
+    except ServiceError as exc:
+        logger.error("OAuth service error during Spotify callback: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_error_payload(exc.code, str(exc), exc.details),
+        ) from exc
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.exception("Unexpected Spotify authentication failure")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=_error_payload("authentication_failed", "Spotify authentication failed"),
         ) from exc
 
     logger.info("Spotify authentication successful for state=%s", state)
@@ -199,11 +227,21 @@ async def youtube_callback(
         credentials_info = oauth.exchange_youtube_code(code=code, state=state)
     except OAuthStateError as exc:
         logger.warning("YouTube OAuth state validation failed: %s", exc)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    except Exception as exc:  # pragma: no cover - defensive logging
-        logger.error("YouTube authentication failed: %s", exc)
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Authentication failed."
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_error_payload("invalid_state", str(exc)),
+        ) from exc
+    except ServiceError as exc:
+        logger.error("OAuth service error during YouTube callback: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=_error_payload(exc.code, str(exc), exc.details),
+        ) from exc
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.exception("YouTube authentication failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=_error_payload("authentication_failed", "YouTube authentication failed"),
         ) from exc
 
     logger.info("YouTube authentication successful for state=%s", state)

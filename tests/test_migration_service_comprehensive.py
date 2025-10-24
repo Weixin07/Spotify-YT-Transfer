@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from googleapiclient.errors import HttpError
 
+from spotify_yt_transfer.services.exceptions import QuotaExceededError
 from spotify_yt_transfer.services.migration_service import MigrationService, _is_quota_exceeded
 
 
@@ -238,7 +239,7 @@ class TestMigratePlaylist:
         repo.get_matched_track.return_value = None
         repo.get_failed_track.return_value = None
 
-        with pytest.raises(Exception, match="YouTube API quota exceeded"):
+        with pytest.raises(QuotaExceededError, match="YouTube API quota exceeded"):
             migration_service.migrate_playlist("Test Playlist", "sp_id")
 
     def test_migrate_retries_failed_tracks(self, migration_service, mock_clients):

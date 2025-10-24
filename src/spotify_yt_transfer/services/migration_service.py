@@ -6,6 +6,7 @@ from googleapiclient.errors import HttpError
 
 from spotify_yt_transfer.clients import SpotifyClient, YouTubeClient
 from spotify_yt_transfer.database.repository import TrackRepository
+from spotify_yt_transfer.services.exceptions import QuotaExceededError
 from spotify_yt_transfer.services.track_matcher import TrackMatcher
 
 logger = logging.getLogger(__name__)
@@ -175,8 +176,10 @@ class MigrationService:
                 except HttpError as e:
                     if _is_quota_exceeded(e):
                         logger.error("YouTube API quota exceeded - stopping migration")
-                        raise Exception(
-                            f"YouTube API quota exceeded at track {idx}/{len(tracks)}"
+                        raise QuotaExceededError(
+                            f"YouTube API quota exceeded at track {idx}/{len(tracks)}",
+                            service="youtube",
+                            details={"track_index": idx, "total_tracks": len(tracks)},
                         ) from e
                     logger.error(f"Error searching for track: {e}")
                     continue
@@ -194,8 +197,10 @@ class MigrationService:
                 except HttpError as e:
                     if _is_quota_exceeded(e):
                         logger.error("YouTube API quota exceeded - stopping migration")
-                        raise Exception(
-                            f"YouTube API quota exceeded at track {idx}/{len(tracks)}"
+                        raise QuotaExceededError(
+                            f"YouTube API quota exceeded at track {idx}/{len(tracks)}",
+                            service="youtube",
+                            details={"track_index": idx, "total_tracks": len(tracks)},
                         ) from e
 
                     logger.error(f"Failed to add video {video_id}: {e}")
