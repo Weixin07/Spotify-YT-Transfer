@@ -54,14 +54,23 @@ def test_spotify_callback_success_returns_token_info():
         def exchange_spotify_code(self, code, state):
             assert code == "abc"
             assert state == "state123"
-            return {"access_token": "token"}
+            return {"access_token": "token", "expires_in": 3600}
 
     with override_oauth_service(StubService()):
         with TestClient(app) as client:
-            response = client.get("/v1/spotify/callback", params={"code": "abc", "state": "state123"})
+            response = client.get(
+                "/v1/spotify/callback", params={"code": "abc", "state": "state123"}
+            )
 
     assert response.status_code == 200
-    assert response.json()["token_info"]["access_token"] == "token"
+    # SECURITY: Tokens should NOT be in response, only confirmation message
+    payload = response.json()
+    assert "message" in payload
+    assert "Spotify authentication successful" in payload["message"]
+    assert "expires_in" in payload
+    # Ensure tokens are NOT exposed in response
+    assert "token_info" not in payload
+    assert "access_token" not in payload
 
 
 def test_youtube_authorize_returns_url_and_state():
@@ -85,11 +94,26 @@ def test_youtube_callback_success_returns_credentials():
             return OAuthAuthorizeResponse("https://youtube.example/auth", "state456")
 
         def exchange_youtube_code(self, code, state):
-            return {"token": "yt-token"}
+            return {
+                "token": "yt-token",
+                "refresh_token": "refresh",
+                "scopes": ["https://www.googleapis.com/auth/youtube.force-ssl"],
+            }
 
     with override_oauth_service(StubService()):
         with TestClient(app) as client:
-            response = client.get("/v1/youtube/callback", params={"code": "def", "state": "state456"})
+            response = client.get(
+                "/v1/youtube/callback", params={"code": "def", "state": "state456"}
+            )
 
     assert response.status_code == 200
-    assert response.json()["credentials"]["token"] == "yt-token"
+    # SECURITY: Tokens should NOT be in response, only confirmation and scopes
+    payload = response.json()
+    assert "message" in payload
+    assert "YouTube authentication successful" in payload["message"]
+    assert "scopes" in payload
+    assert "https://www.googleapis.com/auth/youtube.force-ssl" in payload["scopes"]
+    # Ensure tokens are NOT exposed in response
+    assert "credentials" not in payload
+    assert "token" not in payload
+    assert "refresh_token" not in payload

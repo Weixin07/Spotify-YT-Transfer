@@ -12,6 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 
 from spotify_yt_transfer.api import dependencies
+from spotify_yt_transfer.api.middleware import RedactedLoggingMiddleware
 from spotify_yt_transfer.api.v1.routes import auth, health, migration, utilities
 from spotify_yt_transfer.core import setup_logging
 from spotify_yt_transfer.database import init_db
@@ -80,6 +81,9 @@ app = FastAPI(
         "hideHostname": True,
     },
 )
+
+# Security: Redacted request logging middleware (MUST be added first)
+app.add_middleware(RedactedLoggingMiddleware)
 
 # Rate limiting: 10 requests per minute per IP
 limiter = Limiter(key_func=get_remote_address, default_limits=["10/minute"])

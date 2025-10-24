@@ -1,4 +1,4 @@
-"""Centralized logging configuration."""
+"""Centralized logging configuration with sensitive data redaction."""
 
 import logging
 import sys
@@ -6,10 +6,15 @@ from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from spotify_yt_transfer.core.config import settings
+from spotify_yt_transfer.core.log_redaction import RedactingFilter
 
 
 def setup_logging() -> None:
-    """Configure application-wide logging with console and file handlers."""
+    """
+    Configure application-wide logging with console and file handlers.
+
+    Automatically applies redaction filter to prevent sensitive data exposure.
+    """
     # Determine log level based on debug mode
     log_level = logging.DEBUG if settings.debug else logging.INFO
 
@@ -19,16 +24,20 @@ def setup_logging() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    # Console handler
+    # Create redaction filter
+    redaction_filter = RedactingFilter()
+
+    # Console handler with redaction
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(log_level)
     console_handler.setFormatter(formatter)
+    console_handler.addFilter(redaction_filter)
 
     # Ensure log directory exists
     log_path = Path(settings.logging.file_name)
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Rotating file handler
+    # Rotating file handler with redaction
     file_handler = RotatingFileHandler(
         filename=settings.logging.file_name,
         maxBytes=settings.logging.max_bytes,
@@ -37,6 +46,7 @@ def setup_logging() -> None:
     )
     file_handler.setLevel(log_level)
     file_handler.setFormatter(formatter)
+    file_handler.addFilter(redaction_filter)
 
     # Configure root logger
     root_logger = logging.getLogger()
@@ -51,4 +61,7 @@ def setup_logging() -> None:
         logging.getLogger("googleapiclient.discovery").setLevel(logging.WARNING)
         logging.getLogger("google.auth").setLevel(logging.WARNING)
 
-    logging.info(f"Logging initialized (level={logging.getLevelName(log_level)})")
+    # Suppress uvicorn access logs (contains URLs with tokens)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+
+    logging.info(f"Logging initialized with redaction (level={logging.getLevelName(log_level)})")
