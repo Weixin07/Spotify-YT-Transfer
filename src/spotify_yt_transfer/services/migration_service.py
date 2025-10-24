@@ -231,4 +231,5 @@ class MigrationService:
                 logger.error(f"Unexpected error during retry for {yid}: {ex}")
 
         logger.info(f"Migration complete. YouTube playlist ID: {yt_playlist_id}")
+        self.repo.commit()
         return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}

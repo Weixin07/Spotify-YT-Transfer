@@ -32,8 +32,8 @@ def get_db() -> Generator[Session, None, None]:
     """
     Dependency function that yields a database session.
 
-    Automatically commits on success and rolls back on exception.
-    Always closes the session when done.
+    Rolls back on exception and always closes the session.
+    The caller is responsible for committing the session.
 
     Yields:
         Session: SQLAlchemy database session
@@ -41,7 +41,6 @@ def get_db() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
-        db.commit()
     except Exception:
         db.rollback()
         raise

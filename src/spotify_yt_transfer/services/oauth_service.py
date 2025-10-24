@@ -56,7 +56,6 @@ class OAuthStateStore:
         OAuthState.purge_expired(self.db)
         entity = OAuthState(state=state, provider=provider)
         self.db.merge(entity)  # upsert to avoid duplicates for retries
-        self.db.commit()
         logger.debug("Stored OAuth state for provider=%s", provider)
 
     def consume(self, provider: str, state: str) -> None:
@@ -77,7 +76,6 @@ class OAuthStateStore:
             raise OAuthStateError("Invalid or expired OAuth state")
 
         self.db.query(OAuthState).filter_by(state=state, provider=provider).delete()
-        self.db.commit()
         logger.debug("Consumed OAuth state for provider=%s", provider)
 
 
@@ -116,6 +114,7 @@ class OAuthService:
 
         authorize_url = spotify_oauth.get_authorize_url(state=state)
         self.state_store.create("spotify", state)
+        self.state_store.db.commit()
         logger.info("Generated Spotify authorize URL for state=%s", state)
         return OAuthAuthorizeResponse(authorize_url=authorize_url, state=state)
 
@@ -134,6 +133,7 @@ class OAuthService:
             OAuthStateError: If state validation fails
         """
         self.state_store.consume("spotify", state)
+        self.state_store.db.commit()
 
         spotify_oauth = SpotifyOAuth(
             client_id=settings.spotify.client_id,
@@ -184,6 +184,7 @@ class OAuthService:
             state=state,
         )
         self.state_store.create("youtube", state)
+        self.state_store.db.commit()
         logger.info("Generated YouTube authorize URL for state=%s", state)
         return OAuthAuthorizeResponse(authorize_url=authorize_url, state=state)
 
@@ -199,6 +200,7 @@ class OAuthService:
             Dictionary representation of stored credentials
         """
         self.state_store.consume("youtube", state)
+        self.state_store.db.commit()
 
         flow = self._build_youtube_flow(state=state)
         flow.fetch_token(code=code)

@@ -320,6 +320,8 @@ async def invalidate_cache(
             options.failed_tracks,
         )
 
+        service.repository.commit()
+
         response = CacheInvalidateResponse(
             matched_tracks_removed=result.matched_tracks_removed,
             failed_tracks_removed=result.failed_tracks_removed,
