@@ -68,6 +68,7 @@ docs = [
 
 [project.scripts]
 spotify-yt-transfer = "spotify_yt_transfer.main:cli"
+spotify-yt-transfer-serve = "spotify_yt_transfer.main:serve"
 
 [project.urls]
 Homepage = "https://github.com/yourusername/spotify-yt-transfer"

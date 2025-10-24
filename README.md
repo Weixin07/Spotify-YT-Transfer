@@ -50,13 +50,19 @@ cp .env.example .env
 Running the Service
 
 ```bash
-# Method 1: Using uvicorn directly
-uvicorn spotify_yt_transfer.main:app --reload --port 8001
+# Method 1: Production entry point (no reload, configurable via env)
+spotify-yt-transfer-serve
 
-# Method 2: Using the CLI entry point
+# Method 2: Using the CLI entry point (reload disabled unless UVICORN_RELOAD=1)
 spotify-yt-transfer
 
-# Method 3: As a Python module
+# Method 3: Explicit dev reload
+UVICORN_RELOAD=1 spotify-yt-transfer
+
+# Method 4: Using uvicorn directly (development convenience)
+uvicorn spotify_yt_transfer.main:app --reload --port 8001
+
+# Method 5: As a Python module
 python -m spotify_yt_transfer.main
 ```
 

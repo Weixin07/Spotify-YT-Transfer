@@ -117,19 +117,26 @@ Start the Server
 
 Choose one of these methods:
 
-Method 1: Using Uvicorn directly
+Method 1: Production entry point (no reload)
 ```bash
-uvicorn spotify_yt_transfer.main:app --reload --port 8001
+spotify-yt-transfer-serve
 ```
 
-Method 2: Using the CLI command
+Method 2: CLI command with optional reload (set `UVICORN_RELOAD=1` for development)
 ```bash
 spotify-yt-transfer
+# Development reload
+UVICORN_RELOAD=1 spotify-yt-transfer
 ```
 
 Method 3: As Python module
 ```bash
 python -m spotify_yt_transfer.main
+```
+
+Method 4: Using Uvicorn directly (development convenience)
+```bash
+uvicorn spotify_yt_transfer.main:app --reload --port 8001
 ```
 
 Access the Application
@@ -296,7 +303,9 @@ rm data/matched_tracks.db  # Linux/Mac
 del data\matched_tracks.db  # Windows
 
 # Restart the application (tables will be recreated)
-uvicorn spotify_yt_transfer.main:app --reload
+spotify-yt-transfer-serve
+# development reload (optional)
+# UVICORN_RELOAD=1 spotify-yt-transfer
 ```
 
 Port Already in Use

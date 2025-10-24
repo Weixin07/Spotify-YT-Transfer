@@ -1,6 +1,7 @@
 """FastAPI application entry point."""
 
 import logging
+import os
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -112,12 +113,51 @@ def cli() -> None:
     """
     import uvicorn
 
-    logger.info("Starting application via CLI")
+    reload_flag = os.getenv("UVICORN_RELOAD", "false").lower() in {"1", "true", "yes", "on"}
+    host = os.getenv("UVICORN_HOST", "0.0.0.0")
+    port = int(os.getenv("UVICORN_PORT", "8001"))
+
+    logger.info(
+        "Starting application via CLI (host=%s port=%s reload=%s)",
+        host,
+        port,
+        reload_flag,
+    )
     uvicorn.run(
         "spotify_yt_transfer.main:app",
-        host="0.0.0.0",
-        port=8001,
-        reload=True,
+        host=host,
+        port=port,
+        reload=reload_flag,
+        log_level="info",
+    )
+
+
+def serve() -> None:
+    """
+    Production-friendly entry point.
+
+    Runs Uvicorn without auto-reload and allows overriding host/port/workers via environment
+    variables so the process can be managed by a supervisor (systemd, Docker, etc.).
+    """
+    import uvicorn
+
+    host = os.getenv("UVICORN_HOST", "0.0.0.0")
+    port = int(os.getenv("UVICORN_PORT", "8001"))
+    workers = int(os.getenv("UVICORN_WORKERS", "1"))
+
+    logger.info(
+        "Starting production server (host=%s port=%s workers=%s)",
+        host,
+        port,
+        workers,
+    )
+
+    uvicorn.run(
+        "spotify_yt_transfer.main:app",
+        host=host,
+        port=port,
+        reload=False,
+        workers=workers,
         log_level="info",
     )
 
