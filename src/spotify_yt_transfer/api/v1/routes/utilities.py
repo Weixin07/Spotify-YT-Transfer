@@ -62,7 +62,16 @@ def _error_payload(code: str, message: str, details: dict[str, Any] | None = Non
         },
         404: {
             "description": "Playlist not found",
-            "content": {"application/json": {"example": {"detail": "Playlist 'Foo' not found."}}},
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "playlist_not_found",
+                            "message": "Playlist 'My Playlist' not found.",
+                        }
+                    }
+                }
+            },
         },
     },
 )
@@ -90,7 +99,9 @@ async def get_youtube_playlist_id(
     if playlist_id:
         return YouTubePlaylistResponse(playlist_name=params.playlist_name, playlist_id=playlist_id)
     else:
-        raise HTTPException(status_code=404, detail=f"Playlist '{params.playlist_name}' not found.")
+        raise HTTPException(
+            status_code=404, detail=_error_payload("playlist_not_found", f"Playlist '{params.playlist_name}' not found.")
+        )
 
 
 @router.post(
@@ -116,10 +127,32 @@ async def get_youtube_playlist_id(
                 }
             },
         },
-        400: {
-            "description": "Error splitting liked songs",
+        422: {
+            "description": "Validation error for invalid parameters",
             "content": {
-                "application/json": {"example": {"detail": "Error creating playlists: ..."}}
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "validation_error",
+                            "message": "Tracks per playlist must be between 1 and 10000",
+                            "details": {"field": "tracks_per_playlist"},
+                        }
+                    }
+                }
+            },
+        },
+        502: {
+            "description": "External service error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "external_service_error",
+                            "message": "Spotify API failure",
+                            "details": {"reason": "..."},
+                        }
+                    }
+                }
             },
         },
     },
@@ -203,9 +236,47 @@ async def split_liked_songs(
             "description": "Cover image (JPEG)",
             "content": {"image/jpeg": {}},
         },
-        400: {
-            "description": "Error downloading cover",
-            "content": {"application/json": {"example": {"detail": "No cover image found"}}},
+        404: {
+            "description": "Cover image not found for the given playlist ID",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "cover_not_found",
+                            "message": "No cover image found for this playlist",
+                            "details": {"playlist_id": "..."},
+                        }
+                    }
+                }
+            },
+        },
+        422: {
+            "description": "Validation error for invalid playlist ID",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "validation_error",
+                            "message": "Invalid playlist ID format",
+                            "details": {"field": "playlist_id"},
+                        }
+                    }
+                }
+            },
+        },
+        502: {
+            "description": "External service error when downloading the image",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "external_service_error",
+                            "message": "Image download failed",
+                            "details": {"reason": "..."},
+                        }
+                    }
+                }
+            },
         },
     },
 )

@@ -21,6 +21,7 @@ from spotify_yt_transfer.services import (
     PlaylistService,
     QuotaExceededError,
     ServiceError,
+    ValidationServiceError,
 )
 
 logger = logging.getLogger(__name__)
@@ -165,9 +166,33 @@ async def migrate_playlist(
                 }
             },
         },
-        400: {
-            "description": "Invalid request",
-            "content": {"application/json": {"example": {"detail": "Invalid playlist IDs"}}},
+        422: {
+            "description": "Validation error for invalid playlist IDs",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "validation_error",
+                            "message": "Invalid playlist ID format",
+                            "details": {"field": "spotify_playlist_id"},
+                        }
+                    }
+                }
+            },
+        },
+        502: {
+            "description": "External service error",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "external_service_error",
+                            "message": "Spotify API failure",
+                            "details": {"reason": "..."},
+                        }
+                    }
+                }
+            },
         },
     },
 )
