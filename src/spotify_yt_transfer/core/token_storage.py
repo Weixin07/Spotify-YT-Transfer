@@ -1,7 +1,9 @@
 """Secure token storage using OS keyring with migration support."""
 
+import hashlib
 import json
 import logging
+import os
 import pickle
 from pathlib import Path
 from typing import Any
@@ -13,6 +15,11 @@ logger = logging.getLogger(__name__)
 
 # Service name for keyring entries
 SERVICE_NAME = "spotify_yt_transfer"
+
+# Environment variable gates for legacy pickle migration
+ALLOW_LEGACY_PICKLE_MIGRATION_ENV = "ALLOW_YOUTUBE_PICKLE_MIGRATION"
+LEGACY_PICKLE_SHA_ENV = "YOUTUBE_PICKLE_SHA256"
+LEGACY_SENTINEL_SUFFIX = ".migrated"
 
 
 class KeyringCacheHandler(CacheHandler):
@@ -223,22 +230,99 @@ class YouTubeTokenStorage:
         """
         Migrate existing pickle-based credentials to keyring.
 
-        Checks for legacy token.pickle file and moves credentials to keyring.
-        Deletes the pickle file after successful migration.
+        The migration path is gated by an explicit operator confirmation (environment variable)
+        and optional checksum validation to mitigate the risk of loading untrusted pickle data.
+        After a successful migration a sentinel file is written so the legacy path remains
+        deprecated for subsequent boots.
         """
+        sentinel_path = self._legacy_sentinel_path
+
+        if sentinel_path and sentinel_path.exists():
+            logger.debug(
+                "Legacy YouTube pickle migration already completed (sentinel: %s). Skipping.",
+                sentinel_path,
+            )
+            return
+
         if not self.token_path.exists():
             return
 
-        try:
-            logger.info(f"Found legacy YouTube pickle file: {self.token_path}")
-            with self.token_path.open("rb") as f:
-                credentials = pickle.load(f)
+        if not self._legacy_migration_confirmed():
+            logger.warning(
+                "Legacy YouTube pickle migration blocked: set %s=1 (and optionally %s) to "
+                "allow a one-time import.",
+                ALLOW_LEGACY_PICKLE_MIGRATION_ENV,
+                LEGACY_PICKLE_SHA_ENV,
+            )
+            return
 
-            # Save to keyring
+        expected_checksum = self._expected_legacy_checksum()
+        if expected_checksum:
+            actual_checksum = self._compute_sha256(self.token_path)
+            if actual_checksum != expected_checksum:
+                logger.error(
+                    "Checksum mismatch for legacy YouTube pickle file (expected %s, got %s). "
+                    "Aborting migration.",
+                    expected_checksum,
+                    actual_checksum,
+                )
+                return
+
+        try:
+            logger.info("Importing legacy YouTube credentials from %s", self.token_path)
+            with self.token_path.open("rb") as file_handle:
+                credentials = pickle.load(file_handle)
+        except Exception as exc:
+            logger.error("Failed to deserialize legacy YouTube credentials: %s", exc)
+            return
+
+        try:
             self.save_credentials(credentials)
             logger.info("Successfully migrated YouTube credentials from pickle to keyring")
-        except Exception as e:
-            logger.warning(f"Failed to migrate YouTube credentials from pickle: {e}")
+        except Exception as exc:
+            logger.error("Failed to persist migrated YouTube credentials: %s", exc)
+            return
+
+        try:
+            self.token_path.unlink()
+            logger.info("Removed legacy YouTube pickle file: %s", self.token_path)
+        except FileNotFoundError:
+            logger.debug("Legacy pickle file already removed: %s", self.token_path)
+        except Exception as exc:
+            logger.warning("Failed to delete legacy pickle file %s: %s", self.token_path, exc)
+
+        self._write_legacy_sentinel(sentinel_path)
+
+    def _legacy_migration_confirmed(self) -> bool:
+        env_value = os.environ.get(ALLOW_LEGACY_PICKLE_MIGRATION_ENV, "").lower()
+        return env_value in {"1", "true", "yes", "on"}
+
+    def _expected_legacy_checksum(self) -> str | None:
+        checksum = os.environ.get(LEGACY_PICKLE_SHA_ENV)
+        if checksum:
+            return checksum.strip().lower()
+        return None
+
+    @staticmethod
+    def _compute_sha256(path: Path) -> str:
+        sha256 = hashlib.sha256()
+        with path.open("rb") as f:
+            while chunk := f.read(4096):
+                sha256.update(chunk)
+        return sha256.hexdigest()
+
+    @property
+    def _legacy_sentinel_path(self) -> Path:
+        return self.token_path.parent / f"{self.token_path.name}{LEGACY_SENTINEL_SUFFIX}"
+
+    def _write_legacy_sentinel(self, path: Path | None) -> None:
+        if path is None:
+            return
+        try:
+            path.write_text("migrated\n")
+            logger.debug("Wrote legacy migration sentinel: %s", path)
+        except Exception as exc:
+            logger.warning("Failed to write legacy migration sentinel %s: %s", path, exc)
 
 
 def clear_all_tokens(username: str = "default") -> None:

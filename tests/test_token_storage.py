@@ -1,12 +1,16 @@
 """Tests for secure token storage using OS keyring."""
 
+import hashlib
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, mock_open, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
 from spotify_yt_transfer.core.token_storage import (
+    ALLOW_LEGACY_PICKLE_MIGRATION_ENV,
+    LEGACY_PICKLE_SHA_ENV,
+    LEGACY_SENTINEL_SUFFIX,
     KeyringCacheHandler,
     YouTubeTokenStorage,
     clear_all_tokens,
@@ -180,9 +184,22 @@ class TestYouTubeTokenStorage:
         mock_path.unlink.assert_called_once()
 
     @patch("spotify_yt_transfer.core.token_storage.keyring")
-    @patch("spotify_yt_transfer.core.token_storage.pickle")
-    def test_migrate_from_pickle_moves_credentials_to_keyring(self, mock_pickle, mock_keyring):
-        """Test migration of legacy pickle file to keyring."""
+    @patch("spotify_yt_transfer.core.token_storage.pickle.load")
+    def test_migrate_from_pickle_moves_credentials_to_keyring(
+        self,
+        mock_pickle_load,
+        mock_keyring,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Test migration of legacy pickle file to keyring with explicit confirmation."""
+        legacy_file = tmp_path / "token.pickle"
+        legacy_file.write_bytes(b"legacy youtube credentials")
+
+        checksum = hashlib.sha256(legacy_file.read_bytes()).hexdigest()
+        monkeypatch.setenv(ALLOW_LEGACY_PICKLE_MIGRATION_ENV, "1")
+        monkeypatch.setenv(LEGACY_PICKLE_SHA_ENV, checksum)
+
         mock_creds = MagicMock()
         mock_creds.token = "old_token"
         mock_creds.refresh_token = "old_refresh"
@@ -191,20 +208,75 @@ class TestYouTubeTokenStorage:
         mock_creds.client_secret = "secret"
         mock_creds.scopes = []
         mock_creds.expiry = None
-        mock_pickle.load.return_value = mock_creds
+        mock_pickle_load.return_value = mock_creds
 
-        # Create a mock path that simulates pickle file existence
-        mock_token_path = MagicMock()
-        mock_token_path.exists.return_value = True
+        YouTubeTokenStorage(username="testuser", token_path=str(legacy_file))
 
-        with patch.object(Path, "__new__", return_value=mock_token_path):
-            with patch("builtins.open", mock_open()):
-                storage = YouTubeTokenStorage(username="testuser", token_path="token.pickle")
+        assert mock_keyring.set_password.call_count >= 1
+        assert not legacy_file.exists()
+        sentinel = legacy_file.parent / f"{legacy_file.name}{LEGACY_SENTINEL_SUFFIX}"
+        assert sentinel.exists()
 
-                # Verify migration was attempted (save was called)
-                assert mock_keyring.set_password.call_count >= 1
-                # Verify file deletion was attempted
-                mock_token_path.unlink.assert_called()
+    @patch("spotify_yt_transfer.core.token_storage.keyring")
+    @patch("spotify_yt_transfer.core.token_storage.pickle.load")
+    def test_migrate_from_pickle_requires_confirmation(
+        self,
+        mock_pickle_load,
+        mock_keyring,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Ensure migration does not run without explicit confirmation."""
+        legacy_file = tmp_path / "token.pickle"
+        legacy_file.write_bytes(b"legacy youtube credentials")
+
+        mock_creds = MagicMock()
+        mock_creds.token = "old_token"
+        mock_creds.refresh_token = "old_refresh"
+        mock_creds.token_uri = "uri"
+        mock_creds.client_id = "id"
+        mock_creds.client_secret = "secret"
+        mock_creds.scopes = []
+        mock_creds.expiry = None
+        mock_pickle_load.return_value = mock_creds
+
+        YouTubeTokenStorage(username="testuser", token_path=str(legacy_file))
+
+        assert mock_keyring.set_password.call_count == 0
+        assert legacy_file.exists()
+        sentinel = legacy_file.parent / f"{legacy_file.name}{LEGACY_SENTINEL_SUFFIX}"
+        assert not sentinel.exists()
+
+    @patch("spotify_yt_transfer.core.token_storage.keyring")
+    @patch("spotify_yt_transfer.core.token_storage.pickle.load")
+    def test_migrate_from_pickle_validates_checksum(
+        self,
+        mock_pickle_load,
+        mock_keyring,
+        tmp_path,
+        monkeypatch,
+    ):
+        """Ensure migration aborts when checksum does not match."""
+        legacy_file = tmp_path / "token.pickle"
+        legacy_file.write_bytes(b"legacy youtube credentials")
+
+        monkeypatch.setenv(ALLOW_LEGACY_PICKLE_MIGRATION_ENV, "1")
+        monkeypatch.setenv(LEGACY_PICKLE_SHA_ENV, "deadbeef")
+
+        mock_creds = MagicMock()
+        mock_creds.token = "old_token"
+        mock_creds.refresh_token = "old_refresh"
+        mock_creds.token_uri = "uri"
+        mock_creds.client_id = "id"
+        mock_creds.client_secret = "secret"
+        mock_creds.scopes = []
+        mock_creds.expiry = None
+        mock_pickle_load.return_value = mock_creds
+
+        YouTubeTokenStorage(username="testuser", token_path=str(legacy_file))
+
+        assert mock_keyring.set_password.call_count == 0
+        assert legacy_file.exists()
 
 
 class TestClearAllTokens:
