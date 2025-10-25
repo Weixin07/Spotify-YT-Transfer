@@ -74,6 +74,16 @@ class CoverConfig:
 
 
 @dataclass(frozen=True)
+class ResilienceConfig:
+    """Resilience configuration for HTTP requests."""
+
+    retries: int
+    backoff_factor: float
+    min_backoff: int
+    max_backoff: int
+
+
+@dataclass(frozen=True)
 class TokenStorageConfig:
     """Token storage configuration."""
 
@@ -94,6 +104,7 @@ class Settings:
     logging: LoggingConfig
     matching: MatchingConfig
     cover: CoverConfig
+    resilience: ResilienceConfig
     token_storage: TokenStorageConfig
 
 
@@ -158,6 +169,14 @@ def _load_settings() -> Settings:
         http_timeout=int(_get_env("HTTP_REQUEST_TIMEOUT", "10")),
     )
 
+    # Resilience configuration
+    resilience = ResilienceConfig(
+        retries=int(_get_env("HTTP_RETRY_ATTEMPTS", "3")),
+        backoff_factor=float(_get_env("HTTP_BACKOFF_FACTOR", "1.0")),
+        min_backoff=int(_get_env("HTTP_MIN_BACKOFF", "1")),
+        max_backoff=int(_get_env("HTTP_MAX_BACKOFF", "10")),
+    )
+
     # Token storage configuration
     token_storage = TokenStorageConfig(
         username=_get_env("TOKEN_STORAGE_USERNAME", "default"),
@@ -174,6 +193,7 @@ def _load_settings() -> Settings:
         logging=logging_config,
         matching=matching,
         cover=cover,
+        resilience=resilience,
         token_storage=token_storage,
     )
 
