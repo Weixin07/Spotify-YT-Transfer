@@ -7,18 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from spotipy.client import SpotifyException
 
 from spotify_yt_transfer.api.dependencies import get_oauth_service
+from spotify_yt_transfer.api.errors import ErrorCodes, error_response
 from spotify_yt_transfer.services import OAuthService, OAuthStateError, ServiceError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _error_payload(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
-    payload: dict[str, Any] = {"code": code, "message": message}
-    if details:
-        payload["details"] = details
-    return payload
 
 
 def _extract_code_and_state(request: Request) -> tuple[str, str]:
@@ -41,16 +35,20 @@ def _extract_code_and_state(request: Request) -> tuple[str, str]:
         logger.error("OAuth callback missing 'code' parameter")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_error_payload("missing_parameter", "Missing code parameter in callback.", {"parameter": "code"}),
+            detail=error_response(
+                ErrorCodes.MISSING_PARAMETER,
+                "Missing code parameter in callback",
+                {"parameter": "code"},
+            ),
         )
 
     if not state:
         logger.error("OAuth callback missing 'state' parameter")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_error_payload(
-                "missing_parameter",
-                "Missing state parameter in callback.",
+            detail=error_response(
+                ErrorCodes.MISSING_PARAMETER,
+                "Missing state parameter in callback",
                 {"parameter": "state"},
             ),
         )
@@ -95,7 +93,15 @@ async def spotify_authorize(
         400: {
             "description": "Missing or invalid parameters",
             "content": {
-                "application/json": {"example": {"detail": "Missing code parameter in callback."}}
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "missing_parameter",
+                            "message": "Missing code parameter in callback",
+                            "details": {"parameter": "code"},
+                        }
+                    }
+                }
             },
         },
     },
@@ -128,25 +134,29 @@ async def spotify_callback(
         logger.warning("Spotify OAuth state validation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_error_payload("invalid_state", str(exc)),
+            detail=error_response(ErrorCodes.INVALID_STATE, str(exc)),
         ) from exc
     except SpotifyException as exc:
         logger.error("Spotify authentication failed due to upstream error: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=_error_payload("spotify_api_error", "Spotify authentication failed", {"reason": str(exc)}),
+            detail=error_response(
+                ErrorCodes.SPOTIFY_API_ERROR, "Spotify authentication failed", {"reason": str(exc)}
+            ),
         ) from exc
     except ServiceError as exc:
         logger.error("OAuth service error during Spotify callback: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.exception("Unexpected Spotify authentication failure")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=_error_payload("authentication_failed", "Spotify authentication failed"),
+            detail=error_response(
+                ErrorCodes.AUTHENTICATION_FAILED, "Spotify authentication failed"
+            ),
         ) from exc
 
     logger.info("Spotify authentication successful for state=%s", state)
@@ -196,7 +206,15 @@ async def youtube_authorize(
         400: {
             "description": "Missing or invalid parameters",
             "content": {
-                "application/json": {"example": {"detail": "Missing code parameter in callback."}}
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "missing_parameter",
+                            "message": "Missing code parameter in callback",
+                            "details": {"parameter": "code"},
+                        }
+                    }
+                }
             },
         },
     },
@@ -229,19 +247,21 @@ async def youtube_callback(
         logger.warning("YouTube OAuth state validation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_error_payload("invalid_state", str(exc)),
+            detail=error_response(ErrorCodes.INVALID_STATE, str(exc)),
         ) from exc
     except ServiceError as exc:
         logger.error("OAuth service error during YouTube callback: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.exception("YouTube authentication failed")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=_error_payload("authentication_failed", "YouTube authentication failed"),
+            detail=error_response(
+                ErrorCodes.AUTHENTICATION_FAILED, "YouTube authentication failed"
+            ),
         ) from exc
 
     logger.info("YouTube authentication successful for state=%s", state)

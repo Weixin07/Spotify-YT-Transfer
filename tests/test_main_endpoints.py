@@ -41,6 +41,9 @@ def test_check_missing_endpoint():
 
 def test_cache_invalidation_endpoint_invokes_service():
     class StubCacheService:
+        def __init__(self):
+            self.repository = MagicMock()
+
         def invalidate(self, clear_youtube_cache, purge_matched, purge_failed):
             assert clear_youtube_cache is False
             assert purge_matched is True

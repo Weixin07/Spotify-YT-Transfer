@@ -14,6 +14,7 @@ from spotify_yt_transfer.api.dependencies import (
     get_playlist_service,
     get_youtube_client,
 )
+from spotify_yt_transfer.api.errors import ErrorCodes, error_response
 from spotify_yt_transfer.clients import YouTubeClient
 from spotify_yt_transfer.schemas import (
     CacheInvalidateRequest,
@@ -34,13 +35,6 @@ from spotify_yt_transfer.services import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _error_payload(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
-    payload: dict[str, Any] = {"code": code, "message": message}
-    if details:
-        payload["details"] = details
-    return payload
 
 
 @router.get(
@@ -100,7 +94,12 @@ async def get_youtube_playlist_id(
         return YouTubePlaylistResponse(playlist_name=params.playlist_name, playlist_id=playlist_id)
     else:
         raise HTTPException(
-            status_code=404, detail=_error_payload("playlist_not_found", f"Playlist '{params.playlist_name}' not found.")
+            status_code=404,
+            detail=error_response(
+                ErrorCodes.PLAYLIST_NOT_FOUND,
+                "Playlist not found",
+                {"playlist_name": params.playlist_name},
+            ),
         )
 
 
@@ -199,31 +198,35 @@ async def split_liked_songs(
         logger.warning("Validation error while splitting liked songs: %s", exc)
         raise HTTPException(
             status_code=422,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except ValueError as exc:
         logger.warning("Invalid parameters for splitting liked songs: %s", exc)
         raise HTTPException(
             status_code=422,
-            detail=_error_payload("validation_error", str(exc)),
+            detail=error_response(ErrorCodes.VALIDATION_ERROR, str(exc)),
         ) from exc
     except SpotifyException as exc:
         logger.error("Spotify API failure while splitting liked songs: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=502,
-            detail=_error_payload("external_service_error", "Spotify API failure", {"reason": str(exc)}),
+            detail=error_response(
+                ErrorCodes.EXTERNAL_SERVICE_ERROR, "Spotify API failure", {"reason": str(exc)}
+            ),
         ) from exc
     except ServiceError as exc:
         logger.error("Service error while splitting liked songs: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except Exception as exc:
         logger.exception("Unexpected error splitting liked songs")
         raise HTTPException(
             status_code=500,
-            detail=_error_payload("unexpected_error", "Unexpected error splitting liked songs"),
+            detail=error_response(
+                ErrorCodes.UNEXPECTED_ERROR, "Unexpected error splitting liked songs"
+            ),
         ) from exc
 
 
@@ -317,25 +320,31 @@ async def download_cover(
         logger.info("No cover image found for playlist %s: %s", playlist_id, exc)
         raise HTTPException(
             status_code=404,
-            detail=_error_payload("cover_not_found", str(exc), {"playlist_id": playlist_id}),
+            detail=error_response(
+                ErrorCodes.COVER_NOT_FOUND, str(exc), {"playlist_id": playlist_id}
+            ),
         ) from exc
     except requests.RequestException as exc:
         logger.error("HTTP error while downloading cover: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=502,
-            detail=_error_payload("external_service_error", "Image download failed", {"reason": str(exc)}),
+            detail=error_response(
+                ErrorCodes.EXTERNAL_SERVICE_ERROR, "Image download failed", {"reason": str(exc)}
+            ),
         ) from exc
     except ServiceError as exc:
         logger.error("Service error while downloading cover: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except Exception as exc:
         logger.exception("Unexpected error downloading cover")
         raise HTTPException(
             status_code=500,
-            detail=_error_payload("unexpected_error", "Unexpected error downloading cover"),
+            detail=error_response(
+                ErrorCodes.UNEXPECTED_ERROR, "Unexpected error downloading cover"
+            ),
         ) from exc
 
 
@@ -405,17 +414,19 @@ async def invalidate_cache(
         logger.warning("Cache invalidation validation error: %s", exc)
         raise HTTPException(
             status_code=422,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except ServiceError as exc:
         logger.error("Cache invalidation service error: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except Exception as exc:
         logger.exception("Unexpected error invalidating cache")
         raise HTTPException(
             status_code=500,
-            detail=_error_payload("unexpected_error", "Unexpected error invalidating cache"),
+            detail=error_response(
+                ErrorCodes.UNEXPECTED_ERROR, "Unexpected error invalidating cache"
+            ),
         ) from exc

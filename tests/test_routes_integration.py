@@ -93,9 +93,17 @@ class StubPlaylistService(PlaylistService):
         raise NotImplementedError
 
 
+class MockRepository:
+    """Mock repository for testing."""
+    def commit(self):
+        pass
+
+
 class StubCacheService(CacheService):
     def __init__(self, behavior: str):
         self.behavior = behavior
+        # Mock repository with commit method for route handler
+        self.repository = MockRepository()
 
     def invalidate(self, youtube: bool, matched: bool, failed: bool):
         if self.behavior == "invalidate-success":
@@ -162,8 +170,12 @@ def test_check_missing_tracks_error():
     with override_dependency(dependencies.get_playlist_service, service):
         with TestClient(app) as client:
             resp = client.get("/v1/check-missing", params={"spotify_playlist_id": "sp", "youtube_playlist_id": "yt"})
-    assert resp.status_code == 400
-    assert "detail" in resp.json()
+    assert resp.status_code == 500
+    payload = resp.json()
+    assert "detail" in payload
+    # Verify structured error response
+    assert payload["detail"]["code"] == "service_error"
+    assert payload["detail"]["message"] == "missing failed"
 
 
 @pytest.mark.parametrize(

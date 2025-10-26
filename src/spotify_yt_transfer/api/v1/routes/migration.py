@@ -9,6 +9,7 @@ from googleapiclient.errors import HttpError
 from spotipy.client import SpotifyException
 
 from spotify_yt_transfer.api.dependencies import get_migration_service, get_playlist_service
+from spotify_yt_transfer.api.errors import ErrorCodes, error_response
 from spotify_yt_transfer.clients.errors import OAuthCredentialsMissing
 from spotify_yt_transfer.schemas import (
     CheckMissingParams,
@@ -27,13 +28,6 @@ from spotify_yt_transfer.services import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _error_payload(code: str, message: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
-    payload: dict[str, Any] = {"code": code, "message": message}
-    if details:
-        payload["details"] = details
-    return payload
 
 
 @router.post(
@@ -59,12 +53,29 @@ def _error_payload(code: str, message: str, details: dict[str, Any] | None = Non
         400: {
             "description": "Invalid request or API error",
             "content": {
-                "application/json": {"example": {"detail": "Error retrieving Spotify tracks: ..."}}
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "external_service_error",
+                            "message": "Upstream API failure",
+                            "details": {"reason": "..."},
+                        }
+                    }
+                }
             },
         },
         429: {
             "description": "YouTube API quota exceeded",
-            "content": {"application/json": {"example": {"detail": "YouTube API quota exceeded"}}},
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "code": "quota_exceeded",
+                            "message": "YouTube API quota exceeded",
+                        }
+                    }
+                }
+            },
         },
     },
 )
@@ -107,31 +118,33 @@ async def migrate_playlist(
         logger.warning("Migration aborted due to quota exhaustion: %s", exc)
         raise HTTPException(
             status_code=429,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except OAuthCredentialsMissing as exc:
         logger.warning("Migration requires refreshed OAuth credentials: %s", exc)
         raise HTTPException(
             status_code=401,
-            detail=_error_payload("oauth_credentials_missing", str(exc)),
+            detail=error_response(ErrorCodes.OAUTH_CREDENTIALS_MISSING, str(exc)),
         ) from exc
     except (SpotifyException, HttpError) as exc:
         logger.error("Upstream API failure during migration: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=502,
-            detail=_error_payload("external_service_error", "Upstream API failure", {"reason": str(exc)}),
+            detail=error_response(
+                ErrorCodes.EXTERNAL_SERVICE_ERROR, "Upstream API failure", {"reason": str(exc)}
+            ),
         ) from exc
     except ServiceError as exc:
         logger.error("Migration service error: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except Exception as exc:
         logger.exception("Unexpected migration failure")
         raise HTTPException(
             status_code=500,
-            detail=_error_payload("unexpected_error", "Unexpected migration failure"),
+            detail=error_response(ErrorCodes.UNEXPECTED_ERROR, "Unexpected migration failure"),
         ) from exc
 
 
@@ -230,23 +243,27 @@ async def check_missing_tracks(
         logger.warning("Validation error checking missing tracks: %s", exc)
         raise HTTPException(
             status_code=422,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except SpotifyException as exc:
         logger.error("Spotify API error checking missing tracks: %s", exc, exc_info=True)
         raise HTTPException(
             status_code=502,
-            detail=_error_payload("external_service_error", "Spotify API failure", {"reason": str(exc)}),
+            detail=error_response(
+                ErrorCodes.EXTERNAL_SERVICE_ERROR, "Spotify API failure", {"reason": str(exc)}
+            ),
         ) from exc
     except ServiceError as exc:
         logger.error("Service error checking missing tracks: %s", exc)
         raise HTTPException(
             status_code=500,
-            detail=_error_payload(exc.code, str(exc), exc.details),
+            detail=error_response(exc.code, str(exc), exc.details),
         ) from exc
     except Exception as exc:
         logger.exception("Unexpected error while checking missing tracks")
         raise HTTPException(
             status_code=500,
-            detail=_error_payload("unexpected_error", "Unexpected error checking missing tracks"),
+            detail=error_response(
+                ErrorCodes.UNEXPECTED_ERROR, "Unexpected error checking missing tracks"
+            ),
         ) from exc
