@@ -236,7 +236,7 @@ class YouTubeClient:
         logger.info(f"Total videos retrieved: {len(video_ids)}")
         return video_ids
 
-    @cached(cache=_video_candidates_cache, key=lambda _self, query: query)
+    @cached(cache=_video_candidates_cache, key=lambda _self, query, max_results=10: (query, max_results))
     @retry(
         stop=stop_after_attempt(settings.youtube.retry_attempts),
         wait=wait_random_exponential(

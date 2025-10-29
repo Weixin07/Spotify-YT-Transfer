@@ -4,6 +4,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from spotipy.client import SpotifyException
 
 from spotify_yt_transfer.api.dependencies import get_oauth_service
@@ -58,8 +59,8 @@ def _extract_code_and_state(request: Request) -> tuple[str, str]:
 
 @router.get(
     "/spotify/authorize",
-    summary="Get Spotify authorization URL",
-    description="Generates a Spotify OAuth2 authorization URL for headless deployments.",
+    summary="Get Spotify authorization URL (JSON)",
+    description="Generates a Spotify OAuth2 authorization URL for headless deployments. Returns JSON with URL and state.",
 )
 async def spotify_authorize(
     oauth: OAuthService = Depends(get_oauth_service),
@@ -72,6 +73,28 @@ async def spotify_authorize(
     """
     response = oauth.build_spotify_authorize_url()
     return {"authorize_url": response.authorize_url, "state": response.state}
+
+
+@router.get(
+    "/spotify/login",
+    summary="Redirect to Spotify authorization",
+    description="Automatically redirects to Spotify OAuth2 authorization page. Use this in a browser.",
+)
+async def spotify_login(
+    oauth: OAuthService = Depends(get_oauth_service),
+) -> RedirectResponse:
+    """
+    Redirect user directly to Spotify authorization page.
+
+    This endpoint is designed for browser use - it will automatically
+    redirect you to Spotify's login page.
+
+    Returns:
+        HTTP 302 redirect to Spotify authorization URL
+    """
+    response = oauth.build_spotify_authorize_url()
+    logger.info("Redirecting to Spotify authorization page (state=%s)", response.state)
+    return RedirectResponse(url=response.authorize_url, status_code=status.HTTP_302_FOUND)
 
 
 @router.get(
@@ -171,8 +194,8 @@ async def spotify_callback(
 
 @router.get(
     "/youtube/authorize",
-    summary="Get YouTube authorization URL",
-    description="Generates a YouTube OAuth2 authorization URL for headless deployments.",
+    summary="Get YouTube authorization URL (JSON)",
+    description="Generates a YouTube OAuth2 authorization URL for headless deployments. Returns JSON with URL and state.",
 )
 async def youtube_authorize(
     oauth: OAuthService = Depends(get_oauth_service),
@@ -185,6 +208,28 @@ async def youtube_authorize(
     """
     response = oauth.build_youtube_authorize_url()
     return {"authorize_url": response.authorize_url, "state": response.state}
+
+
+@router.get(
+    "/youtube/login",
+    summary="Redirect to YouTube authorization",
+    description="Automatically redirects to YouTube OAuth2 authorization page. Use this in a browser.",
+)
+async def youtube_login(
+    oauth: OAuthService = Depends(get_oauth_service),
+) -> RedirectResponse:
+    """
+    Redirect user directly to YouTube authorization page.
+
+    This endpoint is designed for browser use - it will automatically
+    redirect you to YouTube's login page.
+
+    Returns:
+        HTTP 302 redirect to YouTube authorization URL
+    """
+    response = oauth.build_youtube_authorize_url()
+    logger.info("Redirecting to YouTube authorization page (state=%s)", response.state)
+    return RedirectResponse(url=response.authorize_url, status_code=status.HTTP_302_FOUND)
 
 
 @router.get(
