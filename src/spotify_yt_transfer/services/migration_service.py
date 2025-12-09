@@ -25,11 +25,12 @@ def _is_quota_exceeded(error: HttpError) -> bool:
     try:
         import json
 
-        status = error.resp.status
+        status_raw = getattr(error.resp, "status", 0)
+        status: int = int(status_raw) if status_raw is not None else 0
         body = error.content.decode()
         payload = json.loads(body)
-        reason = payload.get("error", {}).get("errors", [{}])[0].get("reason", "")
-        return status == 403 and reason == "quotaExceeded"
+        reason = str(payload.get("error", {}).get("errors", [{}])[0].get("reason", ""))
+        return bool(status == 403 and reason == "quotaExceeded")
     except Exception:
         return False
 
@@ -151,7 +152,7 @@ class MigrationService:
 
     def _process_tracks(
         self,
-        tracks: list[dict],
+        tracks: list[dict[str, str | None]],
         yt_playlist_id: str,
         existing_video_ids: set[str],
         failed_attempts: list[tuple[str, str, str]],
@@ -169,6 +170,7 @@ class MigrationService:
             spotify_id = track.get("id")
             track_name = track.get("name")
             artist = track.get("artist")
+            video_id: str | None = None
 
             if not spotify_id:
                 logger.warning(f"Skipping track {idx} - missing Spotify ID")
@@ -248,6 +250,9 @@ class MigrationService:
                         ) from e
                     logger.error(f"Error searching for track: {e}")
                     continue
+
+            if video_id is None:
+                continue
 
             if video_id in existing_video_ids:
                 logger.info(f"Skipping {video_id}; already in playlist {yt_playlist_id}")

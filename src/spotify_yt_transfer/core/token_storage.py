@@ -6,7 +6,7 @@ import logging
 import os
 import pickle
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import keyring
 from spotipy.cache_handler import CacheHandler
@@ -22,7 +22,7 @@ LEGACY_PICKLE_SHA_ENV = "YOUTUBE_PICKLE_SHA256"
 LEGACY_SENTINEL_SUFFIX = ".migrated"
 
 
-class KeyringCacheHandler(CacheHandler):
+class KeyringCacheHandler(CacheHandler):  # type: ignore[misc]
     """
     Spotipy cache handler that stores tokens securely in OS keyring.
 
@@ -57,7 +57,7 @@ class KeyringCacheHandler(CacheHandler):
             token_json = keyring.get_password(SERVICE_NAME, self.keyring_key)
             if token_json:
                 logger.debug(f"Retrieved Spotify token from keyring for user '{self.username}'")
-                return json.loads(token_json)
+                return cast("dict[str, Any]", json.loads(token_json))
             logger.debug(f"No Spotify token found in keyring for user '{self.username}'")
             return None
         except Exception as e:
@@ -219,7 +219,7 @@ class YouTubeTokenStorage:
         if creds_dict.get("expiry"):
             expiry = datetime.fromisoformat(creds_dict["expiry"])
 
-        return Credentials(
+        return Credentials(  # type: ignore[no-untyped-call]
             token=creds_dict["token"],
             refresh_token=creds_dict.get("refresh_token"),
             token_uri=creds_dict["token_uri"],

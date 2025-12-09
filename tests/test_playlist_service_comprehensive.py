@@ -279,10 +279,8 @@ class TestDownloadPlaylistCover:
             def raise_for_status(self):
                 pass
 
-        monkeypatch.setattr(
-            "spotify_yt_transfer.services.playlist_service.requests.get",
-            lambda _url, _timeout: DummyResponse(),
-        )
+        mock_get = MagicMock(return_value=DummyResponse())
+        monkeypatch.setattr("spotify_yt_transfer.services.playlist_service.requests.get", mock_get)
 
         result = playlist_service.download_playlist_cover("playlist_id")
 
@@ -309,10 +307,8 @@ class TestDownloadPlaylistCover:
             def raise_for_status(self):
                 pass
 
-        monkeypatch.setattr(
-            "spotify_yt_transfer.services.playlist_service.requests.get",
-            lambda _url, _timeout: DummyResponse(),
-        )
+        mock_get = MagicMock(return_value=DummyResponse())
+        monkeypatch.setattr("spotify_yt_transfer.services.playlist_service.requests.get", mock_get)
 
         result = playlist_service.download_playlist_cover("playlist_id", min_width=640)
 
@@ -388,10 +384,8 @@ class TestDownloadPlaylistCover:
             def raise_for_status(self):
                 pass
 
-        monkeypatch.setattr(
-            "spotify_yt_transfer.services.playlist_service.requests.get",
-            lambda _url, _timeout: DummyResponse(),
-        )
+        mock_get = MagicMock(return_value=DummyResponse())
+        monkeypatch.setattr("spotify_yt_transfer.services.playlist_service.requests.get", mock_get)
 
         save_path = tmp_path / "cover.jpg"
         result = playlist_service.download_playlist_cover("playlist_id", save_path=str(save_path))

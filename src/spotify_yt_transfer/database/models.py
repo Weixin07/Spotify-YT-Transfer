@@ -2,8 +2,8 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import Column, DateTime, String, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import DateTime, String, func, select
+from sqlalchemy.orm import Mapped, Session, mapped_column
 
 from spotify_yt_transfer.database.base import Base
 
@@ -18,11 +18,11 @@ class MatchedTrack(Base):
 
     __tablename__ = "matched_tracks"
 
-    spotify_id = Column(String, primary_key=True, index=True, nullable=False)
-    song_name = Column(String, nullable=False)
-    artist = Column(String, nullable=False)
-    album = Column(String, nullable=True)
-    youtube_id = Column(String, nullable=False)
+    spotify_id: Mapped[str] = mapped_column(String, primary_key=True, index=True, nullable=False)
+    song_name: Mapped[str] = mapped_column(String, nullable=False)
+    artist: Mapped[str] = mapped_column(String, nullable=False)
+    album: Mapped[str | None] = mapped_column(String, nullable=True)
+    youtube_id: Mapped[str] = mapped_column(String, nullable=False)
 
     def __repr__(self) -> str:
         return f"<MatchedTrack(spotify_id='{self.spotify_id}', song='{self.song_name}', artist='{self.artist}')>"
@@ -37,9 +37,9 @@ class FailedTrack(Base):
 
     __tablename__ = "failed_tracks"
 
-    spotify_id = Column(String, primary_key=True, index=True, nullable=False)
-    youtube_id = Column(String, nullable=True)
-    reason = Column(String, nullable=True)
+    spotify_id: Mapped[str] = mapped_column(String, primary_key=True, index=True, nullable=False)
+    youtube_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    reason: Mapped[str | None] = mapped_column(String, nullable=True)
 
     def __repr__(self) -> str:
         return f"<FailedTrack(spotify_id='{self.spotify_id}', reason='{self.reason}')>"
@@ -54,9 +54,11 @@ class OAuthState(Base):
 
     __tablename__ = "oauth_states"
 
-    state = Column(String, primary_key=True, index=True, nullable=False)
-    provider = Column(String, nullable=False)
-    created_at = Column(DateTime, nullable=False, server_default=func.now())
+    state: Mapped[str] = mapped_column(String, primary_key=True, index=True, nullable=False)
+    provider: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=func.now()
+    )
 
     # TTL in seconds (10 minutes) for state validity
     TTL_SECONDS = 600

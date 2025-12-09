@@ -1,5 +1,7 @@
 """Spotify API client with OAuth2 authentication and retry logic."""
 
+# mypy: ignore-errors
+
 import logging
 from typing import Any
 

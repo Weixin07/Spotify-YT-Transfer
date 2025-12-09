@@ -21,10 +21,8 @@ def test_download_cover(monkeypatch):
     }
 
     # Mock requests.get
-    monkeypatch.setattr(
-        "spotify_yt_transfer.services.playlist_service.requests.get",
-        lambda _url, _timeout: DummyResp(b"fake_image_data"),
-    )
+    mock_get = MagicMock(return_value=DummyResp(b"fake_image_data"))
+    monkeypatch.setattr("spotify_yt_transfer.services.playlist_service.requests.get", mock_get)
 
     # Create PlaylistService instance with mock clients
     service = PlaylistService(mock_spotify, MagicMock(), MagicMock())

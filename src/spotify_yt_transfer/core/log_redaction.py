@@ -2,6 +2,8 @@
 
 import logging
 import re
+from collections.abc import Callable
+from re import Match
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
@@ -21,7 +23,8 @@ SENSITIVE_PARAMS = {
 }
 
 # Patterns for sensitive data in log messages
-SENSITIVE_PATTERNS = [
+Replacement = str | Callable[[Match[str]], str]
+SENSITIVE_PATTERNS: list[tuple[re.Pattern[str], Replacement]] = [
     # Bearer tokens
     (re.compile(r"Bearer\s+[A-Za-z0-9\-._~+/]+=*", re.IGNORECASE), "Bearer [REDACTED]"),
     # Authorization headers

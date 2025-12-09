@@ -7,14 +7,18 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from spotify_yt_transfer.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create declarative base
-Base = declarative_base()
+
+class Base(DeclarativeBase):
+    """Typed declarative base for SQLAlchemy models."""
+
+    pass
+
 
 # Create engine with configuration
 engine = create_engine(

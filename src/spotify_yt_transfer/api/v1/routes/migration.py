@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool
 from googleapiclient.errors import HttpError
 from spotipy.client import SpotifyException
@@ -79,7 +79,7 @@ router = APIRouter()
     },
 )
 async def migrate_playlist(
-    params: MigrateParams = Depends(),
+    params: MigrateParams = Body(...),
     service: MigrationService = Depends(get_migration_service),
 ) -> dict[str, str]:
     """

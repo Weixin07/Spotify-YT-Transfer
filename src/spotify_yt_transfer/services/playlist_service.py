@@ -158,6 +158,8 @@ class PlaylistService:
         # Get current user
         user = self.spotify.get_current_user()
         user_id = user.get("id")
+        if not isinstance(user_id, str):
+            raise ValueError("Spotify user id missing from profile response")
         logger.info(f"User ID: {user_id}")
 
         # Retrieve all liked songs with URIs
@@ -199,7 +201,9 @@ class PlaylistService:
             )
 
             # Extract URIs from the chunk
-            track_uris = [track["uri"] for track in chunk if track.get("uri")]
+            track_uris: list[str] = [
+                str(track["uri"]) for track in chunk if isinstance(track.get("uri"), str)
+            ]
             logger.info(f"Adding {len(track_uris)} tracks to playlist")
 
             # Add tracks in batches of 100 (Spotify API limit)
@@ -231,9 +235,7 @@ class PlaylistService:
             min=settings.resilience.min_backoff,
             max=settings.resilience.max_backoff,
         ),
-        retry_error_callback=lambda retry_state: logger.error(
-            f"Failed to download image after {retry_state.attempt_number} attempts"
-        ),
+        reraise=True,
     )
     def _download_image_with_retry(self, image_url: str) -> bytes:
         """Download an image with retry logic."""

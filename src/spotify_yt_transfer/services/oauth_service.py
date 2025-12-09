@@ -3,7 +3,7 @@
 import logging
 import secrets
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 
 from google_auth_oauthlib.flow import Flow
 from spotipy.oauth2 import SpotifyOAuth
@@ -144,7 +144,7 @@ class OAuthService:
             open_browser=False,
         )
 
-        token_info = spotify_oauth.get_access_token(code, check_cache=False)
+        token_info = cast("dict[str, Any]", spotify_oauth.get_access_token(code, check_cache=False))
         logger.info("Spotify token exchange succeeded")
         return token_info
 
