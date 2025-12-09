@@ -97,7 +97,12 @@ class TestFindMissingTracks:
         # Same track appears twice (same Spotify ID)
         spotify.get_playlist_tracks.return_value = [
             {"id": "spotify_1", "name": "Song1", "artist": "Artist1", "album": "Album1"},
-            {"id": "spotify_1", "name": "Song1", "artist": "Artist1", "album": "Album1"},  # Duplicate
+            {
+                "id": "spotify_1",
+                "name": "Song1",
+                "artist": "Artist1",
+                "album": "Album1",
+            },  # Duplicate
             {"id": "spotify_2", "name": "Song2", "artist": "Artist2", "album": "Album2"},
         ]
 
@@ -114,7 +119,9 @@ class TestFindMissingTracks:
 
         assert len(result["duplicate_tracks"]) >= 1
         # Find the Song1 duplicate using spotify_id field
-        song1_dup = next((d for d in result["duplicate_tracks"] if d["spotify_id"] == "spotify_1"), None)
+        song1_dup = next(
+            (d for d in result["duplicate_tracks"] if d["spotify_id"] == "spotify_1"), None
+        )
         assert song1_dup is not None
         assert song1_dup["count"] == 2
 
@@ -123,8 +130,18 @@ class TestFindMissingTracks:
         spotify, youtube, repo = mock_clients
 
         spotify.get_playlist_tracks.return_value = [
-            {"id": "spotify_1", "name": None, "artist": "Artist1", "album": "Album1"},  # Missing name
-            {"id": "spotify_2", "name": "Song2", "artist": None, "album": "Album2"},  # Missing artist
+            {
+                "id": "spotify_1",
+                "name": None,
+                "artist": "Artist1",
+                "album": "Album1",
+            },  # Missing name
+            {
+                "id": "spotify_2",
+                "name": "Song2",
+                "artist": None,
+                "album": "Album2",
+            },  # Missing artist
             {"id": "spotify_3", "name": "Song3", "artist": "Artist3", "album": "Album3"},  # Valid
         ]
 
@@ -264,7 +281,7 @@ class TestDownloadPlaylistCover:
 
         monkeypatch.setattr(
             "spotify_yt_transfer.services.playlist_service.requests.get",
-            lambda url, timeout: DummyResponse(),
+            lambda _url, _timeout: DummyResponse(),
         )
 
         result = playlist_service.download_playlist_cover("playlist_id")
@@ -294,7 +311,7 @@ class TestDownloadPlaylistCover:
 
         monkeypatch.setattr(
             "spotify_yt_transfer.services.playlist_service.requests.get",
-            lambda url, timeout: DummyResponse(),
+            lambda _url, _timeout: DummyResponse(),
         )
 
         result = playlist_service.download_playlist_cover("playlist_id", min_width=640)
@@ -373,7 +390,7 @@ class TestDownloadPlaylistCover:
 
         monkeypatch.setattr(
             "spotify_yt_transfer.services.playlist_service.requests.get",
-            lambda url, timeout: DummyResponse(),
+            lambda _url, _timeout: DummyResponse(),
         )
 
         save_path = tmp_path / "cover.jpg"
@@ -396,7 +413,12 @@ class TestIntegrationScenarios:
             {"id": "spotify_1", "name": "Track1", "artist": "Artist1", "album": "Album1"},
             {"id": "spotify_2", "name": "Track2", "artist": "Artist2", "album": "Album2"},
             {"id": "spotify_3", "name": "Track3", "artist": "Artist3", "album": "Album3"},
-            {"id": "spotify_3", "name": "Track3", "artist": "Artist3", "album": "Album3"},  # Duplicate
+            {
+                "id": "spotify_3",
+                "name": "Track3",
+                "artist": "Artist3",
+                "album": "Album3",
+            },  # Duplicate
             {"id": "spotify_4", "name": "Track4", "artist": "Artist4", "album": "Album4"},
         ]
 

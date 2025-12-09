@@ -21,9 +21,8 @@ def test_spotify_authorize_returns_url_and_state():
         def build_spotify_authorize_url(self):
             return OAuthAuthorizeResponse("https://spotify.example/auth", "state123")
 
-    with override_oauth_service(StubService()):
-        with TestClient(app) as client:
-            response = client.get("/v1/spotify/authorize")
+    with override_oauth_service(StubService()), TestClient(app) as client:
+        response = client.get("/v1/spotify/authorize")
 
     assert response.status_code == 200
     payload = response.json()
@@ -39,9 +38,8 @@ def test_spotify_callback_rejects_invalid_state():
         def exchange_spotify_code(self, code, state):
             raise OAuthStateError("Invalid or expired OAuth state")
 
-    with override_oauth_service(StubService()):
-        with TestClient(app) as client:
-            response = client.get("/v1/spotify/callback", params={"code": "abc", "state": "foo"})
+    with override_oauth_service(StubService()), TestClient(app) as client:
+        response = client.get("/v1/spotify/callback", params={"code": "abc", "state": "foo"})
 
     assert response.status_code == 400
 
@@ -56,11 +54,8 @@ def test_spotify_callback_success_returns_token_info():
             assert state == "state123"
             return {"access_token": "token", "expires_in": 3600}
 
-    with override_oauth_service(StubService()):
-        with TestClient(app) as client:
-            response = client.get(
-                "/v1/spotify/callback", params={"code": "abc", "state": "state123"}
-            )
+    with override_oauth_service(StubService()), TestClient(app) as client:
+        response = client.get("/v1/spotify/callback", params={"code": "abc", "state": "state123"})
 
     assert response.status_code == 200
     # SECURITY: Tokens should NOT be in response, only confirmation message
@@ -78,9 +73,8 @@ def test_youtube_authorize_returns_url_and_state():
         def build_youtube_authorize_url(self):
             return OAuthAuthorizeResponse("https://youtube.example/auth", "state456")
 
-    with override_oauth_service(StubService()):
-        with TestClient(app) as client:
-            response = client.get("/v1/youtube/authorize")
+    with override_oauth_service(StubService()), TestClient(app) as client:
+        response = client.get("/v1/youtube/authorize")
 
     assert response.status_code == 200
     payload = response.json()
@@ -100,11 +94,8 @@ def test_youtube_callback_success_returns_credentials():
                 "scopes": ["https://www.googleapis.com/auth/youtube.force-ssl"],
             }
 
-    with override_oauth_service(StubService()):
-        with TestClient(app) as client:
-            response = client.get(
-                "/v1/youtube/callback", params={"code": "def", "state": "state456"}
-            )
+    with override_oauth_service(StubService()), TestClient(app) as client:
+        response = client.get("/v1/youtube/callback", params={"code": "def", "state": "state456"})
 
     assert response.status_code == 200
     # SECURITY: Tokens should NOT be in response, only confirmation and scopes

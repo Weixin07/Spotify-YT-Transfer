@@ -1,7 +1,7 @@
 """Initial schema with matched_tracks and failed_tracks tables
 
 Revision ID: b5a7b73da242
-Revises: 
+Revises:
 Create Date: 2025-10-21 14:53:16.308627
 
 """

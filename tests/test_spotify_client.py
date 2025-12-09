@@ -35,7 +35,7 @@ def test_spotify_client_initializes_with_cached_token(monkeypatch):
     )
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.spotify_client.SpotifyOAuth",
-        lambda *args, **kwargs: object(),
+        lambda *_args, **_kwargs: object(),
     )
     created = {}
 

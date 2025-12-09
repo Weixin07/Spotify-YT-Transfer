@@ -11,7 +11,7 @@ def test_youtube_client_requires_credentials(monkeypatch):
     mock_storage.get_credentials.return_value = None
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage",
-        lambda *args, **kwargs: mock_storage,
+        lambda *_args, **_kwargs: mock_storage,
     )
 
     with pytest.raises(OAuthCredentialsMissing):
@@ -34,12 +34,12 @@ def test_youtube_client_refreshes_expired_credentials(monkeypatch):
 
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage",
-        lambda *args, **kwargs: mock_storage,
+        lambda *_args, **_kwargs: mock_storage,
     )
 
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.youtube_client.build",
-        lambda *args, **kwargs: MagicMock(),
+        lambda *_args, **_kwargs: MagicMock(),
     )
 
     YouTubeClient()
@@ -58,13 +58,13 @@ def test_youtube_client_uses_valid_credentials(monkeypatch):
 
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage",
-        lambda *args, **kwargs: mock_storage,
+        lambda *_args, **_kwargs: mock_storage,
     )
 
     expected_service = MagicMock()
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.youtube_client.build",
-        lambda *args, **kwargs: expected_service,
+        lambda *_args, **_kwargs: expected_service,
     )
 
     client = YouTubeClient()
@@ -84,7 +84,7 @@ def test_cache_collision_prevention(monkeypatch):
 
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.youtube_client.YouTubeTokenStorage",
-        lambda *args, **kwargs: mock_storage,
+        lambda *_args, **_kwargs: mock_storage,
     )
 
     responses = [
@@ -125,7 +125,7 @@ def test_cache_collision_prevention(monkeypatch):
 
     monkeypatch.setattr(
         "spotify_yt_transfer.clients.youtube_client.build",
-        lambda *args, **kwargs: fake_service,
+        lambda *_args, **_kwargs: fake_service,
     )
 
     client = YouTubeClient()

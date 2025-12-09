@@ -1,7 +1,6 @@
 """Playlist migration endpoints."""
 
 import logging
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.concurrency import run_in_threadpool

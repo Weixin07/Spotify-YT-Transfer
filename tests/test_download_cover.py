@@ -23,7 +23,7 @@ def test_download_cover(monkeypatch):
     # Mock requests.get
     monkeypatch.setattr(
         "spotify_yt_transfer.services.playlist_service.requests.get",
-        lambda url, timeout: DummyResp(b"fake_image_data"),
+        lambda _url, _timeout: DummyResp(b"fake_image_data"),
     )
 
     # Create PlaylistService instance with mock clients

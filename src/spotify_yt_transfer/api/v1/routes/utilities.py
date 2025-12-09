@@ -1,7 +1,6 @@
 """Utility endpoints for playlist operations."""
 
 import logging
-from typing import Any
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, Response

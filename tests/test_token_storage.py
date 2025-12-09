@@ -3,9 +3,7 @@
 import hashlib
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from spotify_yt_transfer.core.token_storage import (
     ALLOW_LEGACY_PICKLE_MIGRATION_ENV,
@@ -84,7 +82,7 @@ class TestKeyringCacheHandler:
         )
 
         with patch.object(Path, "__new__", return_value=mock_cache_path):
-            handler = KeyringCacheHandler(username="testuser", cache_path=".cache")
+            KeyringCacheHandler(username="testuser", cache_path=".cache")
 
             # Verify migration was attempted (save was called)
             assert mock_keyring.set_password.call_count >= 1
@@ -299,7 +297,7 @@ class TestClearAllTokens:
     def test_clear_all_tokens_handles_missing_tokens(self, mock_keyring):
         """Test that clearing non-existent tokens doesn't crash."""
         # Mock the PasswordDeleteError
-        password_delete_error = type('PasswordDeleteError', (Exception,), {})
+        password_delete_error = type("PasswordDeleteError", (Exception,), {})
         mock_keyring.errors.PasswordDeleteError = password_delete_error
         mock_keyring.delete_password.side_effect = password_delete_error()
 

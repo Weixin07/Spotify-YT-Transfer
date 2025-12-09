@@ -20,7 +20,6 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from spotify_yt_transfer.clients import SpotifyClient
-from spotify_yt_transfer.core.config import settings
 from spotify_yt_transfer.database.base import SessionLocal
 from spotify_yt_transfer.database.models import MatchedTrack
 
@@ -53,7 +52,7 @@ def migrate_cache_for_playlist(spotify_playlist_id: str | None = None) -> dict[s
         return {"error": "spotify_auth_failed", "migrated": 0, "already_new": 0, "not_found": 0}
 
     # Get tracks from Spotify
-    logger.info(f"Fetching tracks from Spotify...")
+    logger.info("Fetching tracks from Spotify...")
     if spotify_playlist_id:
         tracks = spotify_client.get_playlist_tracks(spotify_playlist_id)
         logger.info(f"Retrieved {len(tracks)} tracks from playlist {spotify_playlist_id}")
@@ -88,9 +87,9 @@ def migrate_cache_for_playlist(spotify_playlist_id: str | None = None) -> dict[s
                 continue
 
             # Check if new format entry already exists
-            existing_new = db.query(MatchedTrack).filter(
-                MatchedTrack.spotify_id == spotify_id
-            ).first()
+            existing_new = (
+                db.query(MatchedTrack).filter(MatchedTrack.spotify_id == spotify_id).first()
+            )
 
             if existing_new:
                 logger.debug(f"Track {idx}/{len(tracks)}: '{track_name}' already in new format")
@@ -99,9 +98,9 @@ def migrate_cache_for_playlist(spotify_playlist_id: str | None = None) -> dict[s
 
             # Look for old format entry
             old_format_id = f"{track_name}|{artist}"
-            old_entry = db.query(MatchedTrack).filter(
-                MatchedTrack.spotify_id == old_format_id
-            ).first()
+            old_entry = (
+                db.query(MatchedTrack).filter(MatchedTrack.spotify_id == old_format_id).first()
+            )
 
             if old_entry:
                 # Create new entry with correct Spotify ID
@@ -157,9 +156,7 @@ def cleanup_old_entries(dry_run: bool = True) -> int:
 
     try:
         # Find all old format entries (contain '|' in spotify_id)
-        old_entries = db.query(MatchedTrack).filter(
-            MatchedTrack.spotify_id.like("%|%")
-        ).all()
+        old_entries = db.query(MatchedTrack).filter(MatchedTrack.spotify_id.like("%|%")).all()
 
         count = len(old_entries)
 
@@ -235,16 +232,16 @@ def main():
         sys.exit(1)
 
     # Print summary
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("MIGRATION SUMMARY")
-    print("="*60)
+    print("=" * 60)
     print(f"Successfully migrated:  {stats['migrated']}")
     print(f"Already in new format:  {stats['already_new']}")
     print(f"Not found in cache:     {stats['not_found']}")
     print(f"Skipped (invalid):      {stats['skipped']}")
-    print("="*60)
+    print("=" * 60)
 
-    if stats['migrated'] > 0:
+    if stats["migrated"] > 0:
         print("\nCache migration successful! Your tracks should now be found.")
         print("\nOptional: Run with --cleanup-dry-run to see old entries that can be cleaned up")
         print("         Run with --cleanup to remove old format entries")

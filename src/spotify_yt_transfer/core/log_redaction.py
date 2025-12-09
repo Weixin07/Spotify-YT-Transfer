@@ -5,7 +5,6 @@ import re
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
-
 # Sensitive query parameters that should be redacted
 SENSITIVE_PARAMS = {
     "code",  # OAuth authorization code
@@ -147,10 +146,8 @@ class RedactingFilter(logging.Filter):
             True (always allow the record, just redact it)
         """
         # Redact the main message
-        if hasattr(record, "msg"):
-            # Handle both string and format-style messages
-            if isinstance(record.msg, str):
-                record.msg = redact_message(record.msg)
+        if hasattr(record, "msg") and isinstance(record.msg, str):
+            record.msg = redact_message(record.msg)
 
         # Redact any arguments used in formatting
         if hasattr(record, "args") and record.args:

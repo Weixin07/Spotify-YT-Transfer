@@ -2,7 +2,6 @@
 
 import json
 import logging
-from pathlib import Path
 from typing import Any
 
 from cachetools import TTLCache, cached
@@ -61,7 +60,7 @@ class YouTubeClient:
     with automatic retry logic and caching.
     """
 
-    def __init__(self, token_path: str = "token.pickle") -> None:
+    def __init__(self, token_path: str | None = None) -> None:
         """
         Initialize the YouTubeClient by authenticating and configuring the service.
 
@@ -76,9 +75,10 @@ class YouTubeClient:
         """
         logger.info("Initializing YouTubeClient with secure keyring storage")
 
+        token_storage_path = token_path or settings.token_storage.youtube_token_path
         self.token_storage = YouTubeTokenStorage(
             username=settings.token_storage.username,
-            token_path=settings.token_storage.youtube_token_path,
+            token_path=token_storage_path,
         )
         self.creds: Any | None = None
         self.service: Resource = self._authenticate()

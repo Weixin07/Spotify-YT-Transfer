@@ -41,7 +41,9 @@ class StubMigrationService(MigrationService):
     def __init__(self, behavior: str):
         self.behavior = behavior
 
-    def migrate_playlist(self, youtube_playlist_title: str, spotify_playlist_id: str | None = None) -> dict[str, Any]:
+    def migrate_playlist(
+        self, youtube_playlist_title: str, spotify_playlist_id: str | None = None
+    ) -> dict[str, Any]:
         if self.behavior == "success":
             return {"message": "ok", "youtube_playlist_id": "yt123"}
         if self.behavior == "quota":
@@ -63,7 +65,9 @@ class StubPlaylistService(PlaylistService):
         self.behavior = behavior
         self.response = response or {}
 
-    def find_missing_tracks(self, spotify_playlist_id: str, youtube_playlist_id: str) -> dict[str, Any]:
+    def find_missing_tracks(
+        self, spotify_playlist_id: str, youtube_playlist_id: str
+    ) -> dict[str, Any]:
         if self.behavior == "missing-success":
             return {"missing_tracks": [], "duplicate_tracks": [], "unavailable_tracks": []}
         if self.behavior == "missing-error":
@@ -95,6 +99,7 @@ class StubPlaylistService(PlaylistService):
 
 class MockRepository:
     """Mock repository for testing."""
+
     def commit(self):
         pass
 
@@ -121,9 +126,13 @@ class StubCacheService(CacheService):
 
 def test_migrate_playlist_success():
     service = StubMigrationService("success")
-    with override_dependency(dependencies.get_migration_service, service):
-        with TestClient(app) as client:
-            resp = client.post("/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"})
+    with (
+        override_dependency(dependencies.get_migration_service, service),
+        TestClient(app) as client,
+    ):
+        resp = client.post(
+            "/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
+        )
     assert resp.status_code == 200
     assert resp.json()["youtube_playlist_id"] == "yt123"
 
@@ -139,9 +148,13 @@ def test_migrate_playlist_success():
 )
 def test_migrate_playlist_error_branches(behavior, status, code):
     service = StubMigrationService(behavior)
-    with override_dependency(dependencies.get_migration_service, service):
-        with TestClient(app) as client:
-            resp = client.post("/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"})
+    with (
+        override_dependency(dependencies.get_migration_service, service),
+        TestClient(app) as client,
+    ):
+        resp = client.post(
+            "/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
+        )
     assert resp.status_code == status
     payload = resp.json()
     assert payload["detail"]["code"] == code
@@ -149,27 +162,33 @@ def test_migrate_playlist_error_branches(behavior, status, code):
 
 def test_migrate_playlist_unexpected_error():
     service = StubMigrationService("unexpected")
-    with override_dependency(dependencies.get_migration_service, service):
-        with TestClient(app) as client:
-            resp = client.post("/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"})
+    with (
+        override_dependency(dependencies.get_migration_service, service),
+        TestClient(app) as client,
+    ):
+        resp = client.post(
+            "/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
+        )
     assert resp.status_code == 500
     assert resp.json()["detail"]["code"] == "unexpected_error"
 
 
 def test_check_missing_tracks_success():
     service = StubPlaylistService("missing-success")
-    with override_dependency(dependencies.get_playlist_service, service):
-        with TestClient(app) as client:
-            resp = client.get("/v1/check-missing", params={"spotify_playlist_id": "sp", "youtube_playlist_id": "yt"})
+    with override_dependency(dependencies.get_playlist_service, service), TestClient(app) as client:
+        resp = client.get(
+            "/v1/check-missing", params={"spotify_playlist_id": "sp", "youtube_playlist_id": "yt"}
+        )
     assert resp.status_code == 200
     assert resp.json()["missing_tracks"] == []
 
 
 def test_check_missing_tracks_error():
     service = StubPlaylistService("missing-error")
-    with override_dependency(dependencies.get_playlist_service, service):
-        with TestClient(app) as client:
-            resp = client.get("/v1/check-missing", params={"spotify_playlist_id": "sp", "youtube_playlist_id": "yt"})
+    with override_dependency(dependencies.get_playlist_service, service), TestClient(app) as client:
+        resp = client.get(
+            "/v1/check-missing", params={"spotify_playlist_id": "sp", "youtube_playlist_id": "yt"}
+        )
     assert resp.status_code == 500
     payload = resp.json()
     assert "detail" in payload
@@ -189,9 +208,10 @@ def test_check_missing_tracks_error():
 )
 def test_split_liked_songs_branches(behavior, status, code):
     service = StubPlaylistService(behavior)
-    with override_dependency(dependencies.get_playlist_service, service):
-        with TestClient(app) as client:
-            resp = client.post("/v1/split-liked-songs", json={"playlist_base_name": "Base", "tracks_per_playlist": 100})
+    with override_dependency(dependencies.get_playlist_service, service), TestClient(app) as client:
+        resp = client.post(
+            "/v1/split-liked-songs", json={"playlist_base_name": "Base", "tracks_per_playlist": 100}
+        )
     assert resp.status_code == status
     if code:
         assert resp.json()["detail"]["code"] == code
@@ -208,9 +228,8 @@ def test_split_liked_songs_branches(behavior, status, code):
 )
 def test_download_cover_branches(behavior, status, code):
     service = StubPlaylistService(behavior)
-    with override_dependency(dependencies.get_playlist_service, service):
-        with TestClient(app) as client:
-            resp = client.get("/v1/download-cover", params={"playlist_id": "sp"})
+    with override_dependency(dependencies.get_playlist_service, service), TestClient(app) as client:
+        resp = client.get("/v1/download-cover", params={"playlist_id": "sp"})
     assert resp.status_code == status
     if code:
         assert resp.json()["detail"]["code"] == code
@@ -226,14 +245,13 @@ def test_download_cover_branches(behavior, status, code):
 )
 def test_cache_invalidate_branches(behavior, status, code):
     service = StubCacheService(behavior)
-    with override_dependency(dependencies.get_cache_service, service):
+    with override_dependency(dependencies.get_cache_service, service), TestClient(app) as client:
         payload = {
             "matched_tracks": True,
             "failed_tracks": True,
             "youtube_search": True,
         }
-        with TestClient(app) as client:
-            resp = client.post("/v1/cache/invalidate", json=payload)
+        resp = client.post("/v1/cache/invalidate", json=payload)
     assert resp.status_code == status
     if code:
         assert resp.json()["detail"]["code"] == code

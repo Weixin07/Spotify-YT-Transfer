@@ -143,7 +143,9 @@ class YouTubeTokenStorage:
         try:
             creds_json = keyring.get_password(SERVICE_NAME, self.keyring_key)
             if creds_json:
-                logger.debug(f"Retrieved YouTube credentials from keyring for user '{self.username}'")
+                logger.debug(
+                    f"Retrieved YouTube credentials from keyring for user '{self.username}'"
+                )
                 # Deserialize credentials from JSON
                 creds_dict = json.loads(creds_json)
                 return self._dict_to_credentials(creds_dict)
@@ -209,8 +211,9 @@ class YouTubeTokenStorage:
         Returns:
             Google OAuth2 credentials object
         """
-        from google.oauth2.credentials import Credentials
         from datetime import datetime
+
+        from google.oauth2.credentials import Credentials
 
         expiry = None
         if creds_dict.get("expiry"):
