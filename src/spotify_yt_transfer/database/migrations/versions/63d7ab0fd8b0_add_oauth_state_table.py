@@ -24,7 +24,9 @@ def upgrade() -> None:
         "oauth_states",
         sa.Column("state", sa.String(), nullable=False),
         sa.Column("provider", sa.String(), nullable=False),
-        sa.Column("created_at", sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
+        sa.Column(
+            "created_at", sa.DateTime(), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.PrimaryKeyConstraint("state"),
     )
     op.create_index("ix_oauth_states_state", "oauth_states", ["state"], unique=False)

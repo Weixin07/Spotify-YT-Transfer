@@ -24,7 +24,9 @@ class ServiceError(Exception):
 class QuotaExceededError(ServiceError):
     """Raised when an external API quota has been exhausted."""
 
-    def __init__(self, message: str, *, service: str, details: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self, message: str, *, service: str, details: dict[str, Any] | None = None
+    ) -> None:
         merged_details: dict[str, Any] = {"service": service}
         if details:
             merged_details.update(details)

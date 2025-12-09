@@ -83,4 +83,3 @@ def init_db() -> None:
     from spotify_yt_transfer.database import models  # noqa: F401
 
     _run_migrations()
-

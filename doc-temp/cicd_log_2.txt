@@ -1,0 +1,449 @@
+2025-12-09T09:49:10.3415358Z Current runner version: '2.329.0'
+2025-12-09T09:49:10.3438652Z ##[group]Runner Image Provisioner
+2025-12-09T09:49:10.3439527Z Hosted Compute Agent
+2025-12-09T09:49:10.3440075Z Version: 20251124.448
+2025-12-09T09:49:10.3440682Z Commit: fda5086b43ec66ade217e5fcd18146c879571177
+2025-12-09T09:49:10.3441388Z Build Date: 2025-11-24T21:16:26Z
+2025-12-09T09:49:10.3441937Z ##[endgroup]
+2025-12-09T09:49:10.3442800Z ##[group]Operating System
+2025-12-09T09:49:10.3443366Z Ubuntu
+2025-12-09T09:49:10.3443841Z 24.04.3
+2025-12-09T09:49:10.3444246Z LTS
+2025-12-09T09:49:10.3444763Z ##[endgroup]
+2025-12-09T09:49:10.3445212Z ##[group]Runner Image
+2025-12-09T09:49:10.3445767Z Image: ubuntu-24.04
+2025-12-09T09:49:10.3446336Z Version: 20251126.144.1
+2025-12-09T09:49:10.3447301Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20251126.144/images/ubuntu/Ubuntu2404-Readme.md
+2025-12-09T09:49:10.3448899Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20251126.144
+2025-12-09T09:49:10.3449879Z ##[endgroup]
+2025-12-09T09:49:10.3450959Z ##[group]GITHUB_TOKEN Permissions
+2025-12-09T09:49:10.3452936Z Contents: read
+2025-12-09T09:49:10.3453449Z Metadata: read
+2025-12-09T09:49:10.3454035Z Packages: read
+2025-12-09T09:49:10.3454488Z ##[endgroup]
+2025-12-09T09:49:10.3456539Z Secret source: Actions
+2025-12-09T09:49:10.3457270Z Prepare workflow directory
+2025-12-09T09:49:10.3796904Z Prepare all required actions
+2025-12-09T09:49:10.3837063Z Getting action download info
+2025-12-09T09:49:10.8037120Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+2025-12-09T09:49:11.5650725Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2025-12-09T09:49:11.6491424Z Download action repository 'codecov/codecov-action@v3' (SHA:ab904c41d6ece82784817410c45d8b8c02684457)
+2025-12-09T09:49:12.3641702Z Complete job name: test (3.10)
+2025-12-09T09:49:12.4252954Z ##[group]Run actions/checkout@v4
+2025-12-09T09:49:12.4253672Z with:
+2025-12-09T09:49:12.4254025Z   repository: Weixin07/Spotify-YT-Transfer
+2025-12-09T09:49:12.4254608Z   token: ***
+2025-12-09T09:49:12.4254912Z   ssh-strict: true
+2025-12-09T09:49:12.4255219Z   ssh-user: git
+2025-12-09T09:49:12.4255516Z   persist-credentials: true
+2025-12-09T09:49:12.4255847Z   clean: true
+2025-12-09T09:49:12.4256150Z   sparse-checkout-cone-mode: true
+2025-12-09T09:49:12.4256500Z   fetch-depth: 1
+2025-12-09T09:49:12.4256802Z   fetch-tags: false
+2025-12-09T09:49:12.4257107Z   show-progress: true
+2025-12-09T09:49:12.4257410Z   lfs: false
+2025-12-09T09:49:12.4257684Z   submodules: false
+2025-12-09T09:49:12.4257986Z   set-safe-directory: true
+2025-12-09T09:49:12.4258517Z ##[endgroup]
+2025-12-09T09:49:12.5324607Z Syncing repository: Weixin07/Spotify-YT-Transfer
+2025-12-09T09:49:12.5326091Z ##[group]Getting Git version info
+2025-12-09T09:49:12.5326743Z Working directory is '/home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer'
+2025-12-09T09:49:12.5327550Z [command]/usr/bin/git version
+2025-12-09T09:49:12.5397988Z git version 2.52.0
+2025-12-09T09:49:12.5424445Z ##[endgroup]
+2025-12-09T09:49:12.5438194Z Temporarily overriding HOME='/home/runner/work/_temp/e008e562-ee80-4735-bd84-e7efc698f405' before making global git config changes
+2025-12-09T09:49:12.5439242Z Adding repository directory to the temporary git global config as a safe directory
+2025-12-09T09:49:12.5450956Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer
+2025-12-09T09:49:12.5489788Z Deleting the contents of '/home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer'
+2025-12-09T09:49:12.5493683Z ##[group]Initializing the repository
+2025-12-09T09:49:12.5497786Z [command]/usr/bin/git init /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer
+2025-12-09T09:49:12.5599493Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-12-09T09:49:12.5600891Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2025-12-09T09:49:12.5602426Z hint: to use in all of your new repositories, which will suppress this warning,
+2025-12-09T09:49:12.5603403Z hint: call:
+2025-12-09T09:49:12.5603743Z hint:
+2025-12-09T09:49:12.5604721Z hint: 	git config --global init.defaultBranch <name>
+2025-12-09T09:49:12.5605603Z hint:
+2025-12-09T09:49:12.5606504Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-12-09T09:49:12.5607868Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-12-09T09:49:12.5608972Z hint:
+2025-12-09T09:49:12.5609591Z hint: 	git branch -m <name>
+2025-12-09T09:49:12.5610261Z hint:
+2025-12-09T09:49:12.5611240Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-12-09T09:49:12.5613425Z Initialized empty Git repository in /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/.git/
+2025-12-09T09:49:12.5618037Z [command]/usr/bin/git remote add origin https://github.com/Weixin07/Spotify-YT-Transfer
+2025-12-09T09:49:12.5651055Z ##[endgroup]
+2025-12-09T09:49:12.5651996Z ##[group]Disabling automatic garbage collection
+2025-12-09T09:49:12.5656183Z [command]/usr/bin/git config --local gc.auto 0
+2025-12-09T09:49:12.5684652Z ##[endgroup]
+2025-12-09T09:49:12.5685577Z ##[group]Setting up auth
+2025-12-09T09:49:12.5691866Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-12-09T09:49:12.5722337Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-12-09T09:49:12.6075473Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-12-09T09:49:12.6104466Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-12-09T09:49:12.6327849Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2025-12-09T09:49:12.6358592Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2025-12-09T09:49:12.6598726Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-12-09T09:49:12.6634641Z ##[endgroup]
+2025-12-09T09:49:12.6635385Z ##[group]Fetching the repository
+2025-12-09T09:49:12.6643241Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d20f214bd8173e1c5b12879c26435cd674b8a455:refs/remotes/origin/main
+2025-12-09T09:49:13.2539520Z From https://github.com/Weixin07/Spotify-YT-Transfer
+2025-12-09T09:49:13.2543033Z  * [new ref]         d20f214bd8173e1c5b12879c26435cd674b8a455 -> origin/main
+2025-12-09T09:49:13.2576524Z ##[endgroup]
+2025-12-09T09:49:13.2577207Z ##[group]Determining the checkout info
+2025-12-09T09:49:13.2578951Z ##[endgroup]
+2025-12-09T09:49:13.2584361Z [command]/usr/bin/git sparse-checkout disable
+2025-12-09T09:49:13.2628186Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2025-12-09T09:49:13.2655282Z ##[group]Checking out the ref
+2025-12-09T09:49:13.2659696Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2025-12-09T09:49:13.2811549Z Switched to a new branch 'main'
+2025-12-09T09:49:13.2814334Z branch 'main' set up to track 'origin/main'.
+2025-12-09T09:49:13.2822135Z ##[endgroup]
+2025-12-09T09:49:13.2862416Z [command]/usr/bin/git log -1 --format=%H
+2025-12-09T09:49:13.2884127Z d20f214bd8173e1c5b12879c26435cd674b8a455
+2025-12-09T09:49:13.3109846Z ##[group]Run actions/setup-python@v5
+2025-12-09T09:49:13.3110161Z with:
+2025-12-09T09:49:13.3110349Z   python-version: 3.10
+2025-12-09T09:49:13.3110552Z   check-latest: false
+2025-12-09T09:49:13.3110890Z   token: ***
+2025-12-09T09:49:13.3111094Z   update-environment: true
+2025-12-09T09:49:13.3111310Z   allow-prereleases: false
+2025-12-09T09:49:13.3111519Z   freethreaded: false
+2025-12-09T09:49:13.3111895Z ##[endgroup]
+2025-12-09T09:49:13.5040491Z ##[group]Installed versions
+2025-12-09T09:49:13.5145800Z Successfully set up CPython (3.10.19)
+2025-12-09T09:49:13.5147080Z ##[endgroup]
+2025-12-09T09:49:13.5258084Z ##[group]Run python -m pip install --upgrade pip
+2025-12-09T09:49:13.5258496Z [36;1mpython -m pip install --upgrade pip[0m
+2025-12-09T09:49:13.5258793Z [36;1mpip install -e ".[test]"[0m
+2025-12-09T09:49:13.5304606Z shell: /usr/bin/bash -e {0}
+2025-12-09T09:49:13.5304845Z env:
+2025-12-09T09:49:13.5305100Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:13.5305522Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib/pkgconfig
+2025-12-09T09:49:13.5305908Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:13.5306257Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:13.5306607Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:13.5306961Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib
+2025-12-09T09:49:13.5307256Z ##[endgroup]
+2025-12-09T09:49:14.2778089Z Requirement already satisfied: pip in /opt/hostedtoolcache/Python/3.10.19/x64/lib/python3.10/site-packages (25.3)
+2025-12-09T09:49:14.9728434Z Obtaining file:///home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer
+2025-12-09T09:49:14.9760096Z   Installing build dependencies: started
+2025-12-09T09:49:16.1377883Z   Installing build dependencies: finished with status 'done'
+2025-12-09T09:49:16.1385686Z   Checking if build backend supports build_editable: started
+2025-12-09T09:49:16.4506699Z   Checking if build backend supports build_editable: finished with status 'done'
+2025-12-09T09:49:16.4514691Z   Getting requirements to build editable: started
+2025-12-09T09:49:16.7768094Z   Getting requirements to build editable: finished with status 'done'
+2025-12-09T09:49:16.7778177Z   Preparing editable metadata (pyproject.toml): started
+2025-12-09T09:49:16.9751298Z   Preparing editable metadata (pyproject.toml): finished with status 'done'
+2025-12-09T09:49:17.1778016Z Collecting fastapi>=0.115.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.2769746Z   Downloading fastapi-0.124.0-py3-none-any.whl.metadata (30 kB)
+2025-12-09T09:49:17.3420501Z Collecting uvicorn>=0.34.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.3607313Z   Downloading uvicorn-0.38.0-py3-none-any.whl.metadata (6.8 kB)
+2025-12-09T09:49:17.3983475Z Collecting python-dotenv>=1.0.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.4170352Z   Downloading python_dotenv-1.2.1-py3-none-any.whl.metadata (25 kB)
+2025-12-09T09:49:17.4559971Z Collecting spotipy>=2.25.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.4757045Z   Downloading spotipy-2.25.2-py3-none-any.whl.metadata (5.1 kB)
+2025-12-09T09:49:17.5540473Z Collecting google-api-python-client>=2.163.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.5733145Z   Downloading google_api_python_client-2.187.0-py3-none-any.whl.metadata (7.0 kB)
+2025-12-09T09:49:17.6191552Z Collecting requests>=2.31.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.6384992Z   Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+2025-12-09T09:49:17.6654735Z Collecting google-auth-httplib2>=0.2.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.6844263Z   Downloading google_auth_httplib2-0.2.1-py3-none-any.whl.metadata (3.0 kB)
+2025-12-09T09:49:17.7141282Z Collecting google-auth-oauthlib>=1.2.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.7330607Z   Downloading google_auth_oauthlib-1.2.3-py3-none-any.whl.metadata (3.1 kB)
+2025-12-09T09:49:17.7684595Z Collecting cachetools>=5.3.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:17.7871339Z   Downloading cachetools-6.2.2-py3-none-any.whl.metadata (5.6 kB)
+2025-12-09T09:49:18.4744535Z Collecting rapidfuzz>=3.12.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:18.4938687Z   Downloading rapidfuzz-3.14.3-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (12 kB)
+2025-12-09T09:49:18.7277403Z Collecting pillow>=11.1.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:18.7470052Z   Downloading pillow-12.0.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+2025-12-09T09:49:18.7844483Z Collecting tenacity>=9.1.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:18.8032013Z   Downloading tenacity-9.1.2-py3-none-any.whl.metadata (1.2 kB)
+2025-12-09T09:49:19.1374371Z Collecting sqlalchemy>=2.0.27 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.1567782Z   Downloading sqlalchemy-2.0.44-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (9.5 kB)
+2025-12-09T09:49:19.1990209Z Collecting slowapi>=0.1.9 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.2179477Z   Downloading slowapi-0.1.9-py3-none-any.whl.metadata (3.0 kB)
+2025-12-09T09:49:19.2551866Z Collecting httpx>=0.27.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.2738498Z   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+2025-12-09T09:49:19.4634816Z Collecting pydantic>=2.0.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.4830702Z   Downloading pydantic-2.12.5-py3-none-any.whl.metadata (90 kB)
+2025-12-09T09:49:19.5362676Z Collecting prometheus-fastapi-instrumentator>=7.0.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.5571132Z   Downloading prometheus_fastapi_instrumentator-7.1.0-py3-none-any.whl.metadata (13 kB)
+2025-12-09T09:49:19.6093166Z Collecting keyring>=25.0.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.6281781Z   Downloading keyring-25.7.0-py3-none-any.whl.metadata (21 kB)
+2025-12-09T09:49:19.6790236Z Collecting alembic>=1.13.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.6981318Z   Downloading alembic-1.17.2-py3-none-any.whl.metadata (7.2 kB)
+2025-12-09T09:49:19.7552125Z Collecting pytest>=8.0.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.7741532Z   Downloading pytest-9.0.2-py3-none-any.whl.metadata (7.6 kB)
+2025-12-09T09:49:19.8088642Z Collecting pytest-cov>=4.1.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.8279727Z   Downloading pytest_cov-7.0.0-py3-none-any.whl.metadata (31 kB)
+2025-12-09T09:49:19.8673427Z Collecting pytest-asyncio>=0.23.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:19.8861743Z   Downloading pytest_asyncio-1.3.0-py3-none-any.whl.metadata (4.1 kB)
+2025-12-09T09:49:20.3763666Z Collecting ruff>=0.1.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.3955319Z   Downloading ruff-0.14.8-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (25 kB)
+2025-12-09T09:49:20.4719047Z Collecting black>=24.0.0 (from spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.4917045Z   Downloading black-25.12.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (86 kB)
+2025-12-09T09:49:20.5501346Z Collecting Mako (from alembic>=1.13.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.5691611Z   Downloading mako-1.3.10-py3-none-any.whl.metadata (2.9 kB)
+2025-12-09T09:49:20.6049759Z Collecting typing-extensions>=4.12 (from alembic>=1.13.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.6238712Z   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+2025-12-09T09:49:20.6585197Z Collecting tomli (from alembic>=1.13.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.6774435Z   Downloading tomli-2.3.0-py3-none-any.whl.metadata (10 kB)
+2025-12-09T09:49:20.7140819Z Collecting click>=8.0.0 (from black>=24.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.7330116Z   Downloading click-8.3.1-py3-none-any.whl.metadata (2.6 kB)
+2025-12-09T09:49:20.7590688Z Collecting mypy-extensions>=0.4.3 (from black>=24.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.7779532Z   Downloading mypy_extensions-1.1.0-py3-none-any.whl.metadata (1.1 kB)
+2025-12-09T09:49:20.8140513Z Collecting packaging>=22.0 (from black>=24.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.8328732Z   Downloading packaging-25.0-py3-none-any.whl.metadata (3.3 kB)
+2025-12-09T09:49:20.8610835Z Collecting pathspec>=0.9.0 (from black>=24.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.8799456Z   Downloading pathspec-0.12.1-py3-none-any.whl.metadata (21 kB)
+2025-12-09T09:49:20.9175337Z Collecting platformdirs>=2 (from black>=24.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.9366818Z   Downloading platformdirs-4.5.1-py3-none-any.whl.metadata (12 kB)
+2025-12-09T09:49:20.9658594Z Collecting pytokens>=0.3.0 (from black>=24.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:20.9848207Z   Downloading pytokens-0.3.0-py3-none-any.whl.metadata (2.0 kB)
+2025-12-09T09:49:21.0424415Z Collecting starlette<0.51.0,>=0.40.0 (from fastapi>=0.115.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:21.0611396Z   Downloading starlette-0.50.0-py3-none-any.whl.metadata (6.3 kB)
+2025-12-09T09:49:21.1331132Z Collecting annotated-doc>=0.0.2 (from fastapi>=0.115.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:21.1522013Z   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)
+2025-12-09T09:49:21.1820557Z Collecting annotated-types>=0.6.0 (from pydantic>=2.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:21.2007821Z   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+2025-12-09T09:49:22.0709302Z Collecting pydantic-core==2.41.5 (from pydantic>=2.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.0904316Z   Downloading pydantic_core-2.41.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)
+2025-12-09T09:49:22.1209700Z Collecting typing-inspection>=0.4.2 (from pydantic>=2.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.1398556Z   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+2025-12-09T09:49:22.1817290Z Collecting anyio<5,>=3.6.2 (from starlette<0.51.0,>=0.40.0->fastapi>=0.115.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.2006159Z   Downloading anyio-4.12.0-py3-none-any.whl.metadata (4.3 kB)
+2025-12-09T09:49:22.2366396Z Collecting exceptiongroup>=1.0.2 (from anyio<5,>=3.6.2->starlette<0.51.0,>=0.40.0->fastapi>=0.115.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.2554728Z   Downloading exceptiongroup-1.3.1-py3-none-any.whl.metadata (6.7 kB)
+2025-12-09T09:49:22.2864979Z Collecting idna>=2.8 (from anyio<5,>=3.6.2->starlette<0.51.0,>=0.40.0->fastapi>=0.115.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.3059879Z   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+2025-12-09T09:49:22.3525194Z Collecting httplib2<1.0.0,>=0.19.0 (from google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.3715985Z   Downloading httplib2-0.31.0-py3-none-any.whl.metadata (2.2 kB)
+2025-12-09T09:49:22.4502141Z Collecting google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0 (from google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.4693068Z   Downloading google_auth-2.43.0-py2.py3-none-any.whl.metadata (6.6 kB)
+2025-12-09T09:49:22.5554203Z Collecting google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5 (from google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.5743427Z   Downloading google_api_core-2.28.1-py3-none-any.whl.metadata (3.3 kB)
+2025-12-09T09:49:22.6065129Z Collecting uritemplate<5,>=3.0.1 (from google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.6255081Z   Downloading uritemplate-4.2.0-py3-none-any.whl.metadata (2.6 kB)
+2025-12-09T09:49:22.6632595Z Collecting googleapis-common-protos<2.0.0,>=1.56.2 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:22.6821241Z   Downloading googleapis_common_protos-1.72.0-py3-none-any.whl.metadata (9.4 kB)
+2025-12-09T09:49:23.0114432Z Collecting protobuf!=3.20.0,!=3.20.1,!=4.21.0,!=4.21.1,!=4.21.2,!=4.21.3,!=4.21.4,!=4.21.5,<7.0.0,>=3.19.5 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.0307040Z   Downloading protobuf-6.33.2-cp39-abi3-manylinux2014_x86_64.whl.metadata (593 bytes)
+2025-12-09T09:49:23.0673604Z Collecting proto-plus<2.0.0,>=1.22.3 (from google-api-core!=2.0.*,!=2.1.*,!=2.2.*,!=2.3.0,<3.0.0,>=1.31.5->google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.0866003Z   Downloading proto_plus-1.26.1-py3-none-any.whl.metadata (2.2 kB)
+2025-12-09T09:49:23.1701910Z Collecting pyasn1-modules>=0.2.1 (from google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.1890418Z   Downloading pyasn1_modules-0.4.2-py3-none-any.whl.metadata (3.5 kB)
+2025-12-09T09:49:23.2217232Z Collecting rsa<5,>=3.1.4 (from google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.2405133Z   Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+2025-12-09T09:49:23.3608485Z Collecting pyparsing<4,>=3.0.4 (from httplib2<1.0.0,>=0.19.0->google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.3797972Z   Downloading pyparsing-3.2.5-py3-none-any.whl.metadata (5.0 kB)
+2025-12-09T09:49:23.5745405Z Collecting charset_normalizer<4,>=2 (from requests>=2.31.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.5934903Z   Downloading charset_normalizer-3.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (37 kB)
+2025-12-09T09:49:23.6465489Z Collecting urllib3<3,>=1.21.1 (from requests>=2.31.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.6653618Z   Downloading urllib3-2.6.1-py3-none-any.whl.metadata (6.6 kB)
+2025-12-09T09:49:23.7050098Z Collecting certifi>=2017.4.17 (from requests>=2.31.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.7240222Z   Downloading certifi-2025.11.12-py3-none-any.whl.metadata (2.5 kB)
+2025-12-09T09:49:23.7686140Z Collecting pyasn1>=0.1.3 (from rsa<5,>=3.1.4->google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0->google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.7890919Z   Downloading pyasn1-0.6.1-py3-none-any.whl.metadata (8.4 kB)
+2025-12-09T09:49:23.8277004Z Collecting google-auth!=2.24.0,!=2.25.0,<3.0.0,>=1.32.0 (from google-api-python-client>=2.163.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.8466519Z   Downloading google_auth-2.41.1-py2.py3-none-any.whl.metadata (6.6 kB)
+2025-12-09T09:49:23.8856119Z Collecting requests-oauthlib>=0.7.0 (from google-auth-oauthlib>=1.2.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.9076817Z   Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl.metadata (11 kB)
+2025-12-09T09:49:23.9481516Z Collecting httpcore==1.* (from httpx>=0.27.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:23.9669157Z   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+2025-12-09T09:49:23.9966286Z Collecting h11>=0.16 (from httpcore==1.*->httpx>=0.27.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.0154163Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+2025-12-09T09:49:24.0463783Z Collecting SecretStorage>=3.2 (from keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.0651020Z   Downloading secretstorage-3.5.0-py3-none-any.whl.metadata (4.0 kB)
+2025-12-09T09:49:24.0929326Z Collecting jeepney>=0.4.2 (from keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.1118763Z   Downloading jeepney-0.9.0-py3-none-any.whl.metadata (1.2 kB)
+2025-12-09T09:49:24.1643705Z Collecting importlib_metadata>=4.11.4 (from keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.1831216Z   Downloading importlib_metadata-8.7.0-py3-none-any.whl.metadata (4.8 kB)
+2025-12-09T09:49:24.2160347Z Collecting jaraco.classes (from keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.2350076Z   Downloading jaraco.classes-3.4.0-py3-none-any.whl.metadata (2.6 kB)
+2025-12-09T09:49:24.2706748Z Collecting jaraco.functools (from keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.2895861Z   Downloading jaraco_functools-4.3.0-py3-none-any.whl.metadata (2.9 kB)
+2025-12-09T09:49:24.3228450Z Collecting jaraco.context (from keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.3415261Z   Downloading jaraco.context-6.0.1-py3-none-any.whl.metadata (4.1 kB)
+2025-12-09T09:49:24.3803228Z Collecting zipp>=3.20 (from importlib_metadata>=4.11.4->keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.3989602Z   Downloading zipp-3.23.0-py3-none-any.whl.metadata (3.6 kB)
+2025-12-09T09:49:24.4465936Z Collecting prometheus-client<1.0.0,>=0.8.0 (from prometheus-fastapi-instrumentator>=7.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.4652898Z   Downloading prometheus_client-0.23.1-py3-none-any.whl.metadata (1.9 kB)
+2025-12-09T09:49:24.5167707Z Collecting iniconfig>=1.0.1 (from pytest>=8.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.5354967Z   Downloading iniconfig-2.3.0-py3-none-any.whl.metadata (2.5 kB)
+2025-12-09T09:49:24.5649501Z Collecting pluggy<2,>=1.5 (from pytest>=8.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.5836329Z   Downloading pluggy-1.6.0-py3-none-any.whl.metadata (4.8 kB)
+2025-12-09T09:49:24.6216608Z Collecting pygments>=2.7.2 (from pytest>=8.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.6404658Z   Downloading pygments-2.19.2-py3-none-any.whl.metadata (2.5 kB)
+2025-12-09T09:49:24.6766856Z Collecting backports-asyncio-runner<2,>=1.1 (from pytest-asyncio>=0.23.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:24.6953967Z   Downloading backports_asyncio_runner-1.2.0-py3-none-any.whl.metadata (7.5 kB)
+2025-12-09T09:49:25.2646677Z Collecting coverage>=7.10.6 (from coverage[toml]>=7.10.6->pytest-cov>=4.1.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:25.2855864Z   Downloading coverage-7.13.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (8.5 kB)
+2025-12-09T09:49:25.3449742Z Collecting oauthlib>=3.0.0 (from requests-oauthlib>=0.7.0->google-auth-oauthlib>=1.2.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:25.3639028Z   Downloading oauthlib-3.3.1-py3-none-any.whl.metadata (7.9 kB)
+2025-12-09T09:49:25.6128772Z Collecting cryptography>=2.0 (from SecretStorage>=3.2->keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:25.6320001Z   Downloading cryptography-46.0.3-cp38-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+2025-12-09T09:49:25.7818240Z Collecting cffi>=2.0.0 (from cryptography>=2.0->SecretStorage>=3.2->keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:25.8011157Z   Downloading cffi-2.0.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+2025-12-09T09:49:25.8363065Z Collecting pycparser (from cffi>=2.0.0->cryptography>=2.0->SecretStorage>=3.2->keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:25.8550975Z   Downloading pycparser-2.23-py3-none-any.whl.metadata (993 bytes)
+2025-12-09T09:49:25.9004565Z Collecting limits>=2.3 (from slowapi>=0.1.9->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:25.9193177Z   Downloading limits-5.6.0-py3-none-any.whl.metadata (10 kB)
+2025-12-09T09:49:25.9551649Z Collecting deprecated>=1.2 (from limits>=2.3->slowapi>=0.1.9->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:25.9739767Z   Downloading deprecated-1.3.1-py2.py3-none-any.whl.metadata (5.9 kB)
+2025-12-09T09:49:26.1635405Z Collecting wrapt<3,>=1.10 (from deprecated>=1.2->limits>=2.3->slowapi>=0.1.9->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:26.1834528Z   Downloading wrapt-2.0.1-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (9.0 kB)
+2025-12-09T09:49:26.2381654Z Collecting redis>=3.5.3 (from spotipy>=2.25.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:26.2586258Z   Downloading redis-7.1.0-py3-none-any.whl.metadata (12 kB)
+2025-12-09T09:49:26.3127895Z Collecting async-timeout>=4.0.3 (from redis>=3.5.3->spotipy>=2.25.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:26.3325790Z   Downloading async_timeout-5.0.1-py3-none-any.whl.metadata (5.1 kB)
+2025-12-09T09:49:26.5004671Z Collecting greenlet>=1 (from sqlalchemy>=2.0.27->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:26.5194899Z   Downloading greenlet-3.3.0-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (4.1 kB)
+2025-12-09T09:49:26.5877924Z Collecting more-itertools (from jaraco.classes->keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:26.6064280Z   Downloading more_itertools-10.8.0-py3-none-any.whl.metadata (39 kB)
+2025-12-09T09:49:26.6358089Z Collecting backports.tarfile (from jaraco.context->keyring>=25.0.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:26.6546943Z   Downloading backports.tarfile-1.2.0-py3-none-any.whl.metadata (2.0 kB)
+2025-12-09T09:49:26.7409753Z Collecting MarkupSafe>=0.9.2 (from Mako->alembic>=1.13.0->spotify-yt-transfer==1.0.0)
+2025-12-09T09:49:26.7600307Z   Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+2025-12-09T09:49:26.7920323Z Downloading alembic-1.17.2-py3-none-any.whl (248 kB)
+2025-12-09T09:49:26.8415362Z Downloading black-25.12.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (1.8 MB)
+2025-12-09T09:49:26.8852128Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.8/1.8 MB 40.5 MB/s  0:00:00
+2025-12-09T09:49:26.9041708Z Downloading cachetools-6.2.2-py3-none-any.whl (11 kB)
+2025-12-09T09:49:26.9256907Z Downloading click-8.3.1-py3-none-any.whl (108 kB)
+2025-12-09T09:49:26.9477459Z Downloading fastapi-0.124.0-py3-none-any.whl (112 kB)
+2025-12-09T09:49:26.9695445Z Downloading pydantic-2.12.5-py3-none-any.whl (463 kB)
+2025-12-09T09:49:26.9924388Z Downloading pydantic_core-2.41.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+2025-12-09T09:49:27.0089432Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 142.1 MB/s  0:00:00
+2025-12-09T09:49:27.0279824Z Downloading starlette-0.50.0-py3-none-any.whl (74 kB)
+2025-12-09T09:49:27.0511515Z Downloading anyio-4.12.0-py3-none-any.whl (113 kB)
+2025-12-09T09:49:27.0723499Z Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)
+2025-12-09T09:49:27.0931304Z Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+2025-12-09T09:49:27.1150304Z Downloading exceptiongroup-1.3.1-py3-none-any.whl (16 kB)
+2025-12-09T09:49:27.1360843Z Downloading google_api_python_client-2.187.0-py3-none-any.whl (14.6 MB)
+2025-12-09T09:49:27.2272383Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.6/14.6 MB 163.8 MB/s  0:00:00
+2025-12-09T09:49:27.2459990Z Downloading google_api_core-2.28.1-py3-none-any.whl (173 kB)
+2025-12-09T09:49:27.2671233Z Downloading google_auth_httplib2-0.2.1-py3-none-any.whl (9.5 kB)
+2025-12-09T09:49:27.2907887Z Downloading googleapis_common_protos-1.72.0-py3-none-any.whl (297 kB)
+2025-12-09T09:49:27.3124645Z Downloading httplib2-0.31.0-py3-none-any.whl (91 kB)
+2025-12-09T09:49:27.3333042Z Downloading proto_plus-1.26.1-py3-none-any.whl (50 kB)
+2025-12-09T09:49:27.3540128Z Downloading protobuf-6.33.2-cp39-abi3-manylinux2014_x86_64.whl (323 kB)
+2025-12-09T09:49:27.3756943Z Downloading pyparsing-3.2.5-py3-none-any.whl (113 kB)
+2025-12-09T09:49:27.3974274Z Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+2025-12-09T09:49:27.4183815Z Downloading charset_normalizer-3.4.4-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (153 kB)
+2025-12-09T09:49:27.4391105Z Downloading idna-3.11-py3-none-any.whl (71 kB)
+2025-12-09T09:49:27.4596073Z Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+2025-12-09T09:49:27.4801662Z Downloading uritemplate-4.2.0-py3-none-any.whl (11 kB)
+2025-12-09T09:49:27.5007176Z Downloading urllib3-2.6.1-py3-none-any.whl (131 kB)
+2025-12-09T09:49:27.5218224Z Downloading certifi-2025.11.12-py3-none-any.whl (159 kB)
+2025-12-09T09:49:27.5450493Z Downloading google_auth_oauthlib-1.2.3-py3-none-any.whl (19 kB)
+2025-12-09T09:49:27.5655722Z Downloading google_auth-2.41.1-py2.py3-none-any.whl (221 kB)
+2025-12-09T09:49:27.5868310Z Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+2025-12-09T09:49:27.6078790Z Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+2025-12-09T09:49:27.6287408Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+2025-12-09T09:49:27.6494383Z Downloading keyring-25.7.0-py3-none-any.whl (39 kB)
+2025-12-09T09:49:27.6701859Z Downloading importlib_metadata-8.7.0-py3-none-any.whl (27 kB)
+2025-12-09T09:49:27.6910828Z Downloading jeepney-0.9.0-py3-none-any.whl (49 kB)
+2025-12-09T09:49:27.7117012Z Downloading mypy_extensions-1.1.0-py3-none-any.whl (5.0 kB)
+2025-12-09T09:49:27.7322518Z Downloading packaging-25.0-py3-none-any.whl (66 kB)
+2025-12-09T09:49:27.7530941Z Downloading pathspec-0.12.1-py3-none-any.whl (31 kB)
+2025-12-09T09:49:27.7742846Z Downloading pillow-12.0.0-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.0 MB)
+2025-12-09T09:49:27.8152530Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.0/7.0 MB 177.4 MB/s  0:00:00
+2025-12-09T09:49:27.8342390Z Downloading platformdirs-4.5.1-py3-none-any.whl (18 kB)
+2025-12-09T09:49:27.8551056Z Downloading prometheus_fastapi_instrumentator-7.1.0-py3-none-any.whl (19 kB)
+2025-12-09T09:49:27.8757676Z Downloading prometheus_client-0.23.1-py3-none-any.whl (61 kB)
+2025-12-09T09:49:27.8967812Z Downloading pyasn1-0.6.1-py3-none-any.whl (83 kB)
+2025-12-09T09:49:27.9179277Z Downloading pyasn1_modules-0.4.2-py3-none-any.whl (181 kB)
+2025-12-09T09:49:27.9391167Z Downloading pytest-9.0.2-py3-none-any.whl (374 kB)
+2025-12-09T09:49:27.9614097Z Downloading pluggy-1.6.0-py3-none-any.whl (20 kB)
+2025-12-09T09:49:27.9820370Z Downloading iniconfig-2.3.0-py3-none-any.whl (7.5 kB)
+2025-12-09T09:49:28.0030957Z Downloading pygments-2.19.2-py3-none-any.whl (1.2 MB)
+2025-12-09T09:49:28.0139525Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.2/1.2 MB 117.2 MB/s  0:00:00
+2025-12-09T09:49:28.0328052Z Downloading pytest_asyncio-1.3.0-py3-none-any.whl (15 kB)
+2025-12-09T09:49:28.0536008Z Downloading backports_asyncio_runner-1.2.0-py3-none-any.whl (12 kB)
+2025-12-09T09:49:28.0745855Z Downloading pytest_cov-7.0.0-py3-none-any.whl (22 kB)
+2025-12-09T09:49:28.0969321Z Downloading coverage-7.13.0-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (247 kB)
+2025-12-09T09:49:28.1183812Z Downloading python_dotenv-1.2.1-py3-none-any.whl (21 kB)
+2025-12-09T09:49:28.1400197Z Downloading pytokens-0.3.0-py3-none-any.whl (12 kB)
+2025-12-09T09:49:28.1641750Z Downloading rapidfuzz-3.14.3-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (3.2 MB)
+2025-12-09T09:49:28.1808704Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 211.4 MB/s  0:00:00
+2025-12-09T09:49:28.1996265Z Downloading requests_oauthlib-2.0.0-py2.py3-none-any.whl (24 kB)
+2025-12-09T09:49:28.2203565Z Downloading oauthlib-3.3.1-py3-none-any.whl (160 kB)
+2025-12-09T09:49:28.2417401Z Downloading ruff-0.14.8-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (14.1 MB)
+2025-12-09T09:49:28.3238505Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 14.1/14.1 MB 175.4 MB/s  0:00:00
+2025-12-09T09:49:28.3427739Z Downloading secretstorage-3.5.0-py3-none-any.whl (15 kB)
+2025-12-09T09:49:28.3638149Z Downloading cryptography-46.0.3-cp38-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+2025-12-09T09:49:28.3942754Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 152.2 MB/s  0:00:00
+2025-12-09T09:49:28.4133019Z Downloading cffi-2.0.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (216 kB)
+2025-12-09T09:49:28.4347128Z Downloading slowapi-0.1.9-py3-none-any.whl (14 kB)
+2025-12-09T09:49:28.4571038Z Downloading limits-5.6.0-py3-none-any.whl (60 kB)
+2025-12-09T09:49:28.4778736Z Downloading deprecated-1.3.1-py2.py3-none-any.whl (11 kB)
+2025-12-09T09:49:28.4985662Z Downloading wrapt-2.0.1-cp310-cp310-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (113 kB)
+2025-12-09T09:49:28.5207540Z Downloading spotipy-2.25.2-py3-none-any.whl (31 kB)
+2025-12-09T09:49:28.5418058Z Downloading redis-7.1.0-py3-none-any.whl (354 kB)
+2025-12-09T09:49:28.5638645Z Downloading async_timeout-5.0.1-py3-none-any.whl (6.2 kB)
+2025-12-09T09:49:28.5879097Z Downloading sqlalchemy-2.0.44-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (3.2 MB)
+2025-12-09T09:49:28.6040478Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.2/3.2 MB 218.3 MB/s  0:00:00
+2025-12-09T09:49:28.6229449Z Downloading greenlet-3.3.0-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (586 kB)
+2025-12-09T09:49:28.6288385Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 586.9/586.9 kB 94.6 MB/s  0:00:00
+2025-12-09T09:49:28.6474856Z Downloading tenacity-9.1.2-py3-none-any.whl (28 kB)
+2025-12-09T09:49:28.6680835Z Downloading tomli-2.3.0-py3-none-any.whl (14 kB)
+2025-12-09T09:49:28.6888992Z Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+2025-12-09T09:49:28.7101297Z Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+2025-12-09T09:49:28.7314324Z Downloading uvicorn-0.38.0-py3-none-any.whl (68 kB)
+2025-12-09T09:49:28.7528302Z Downloading zipp-3.23.0-py3-none-any.whl (10 kB)
+2025-12-09T09:49:28.7764818Z Downloading jaraco.classes-3.4.0-py3-none-any.whl (6.8 kB)
+2025-12-09T09:49:28.7969600Z Downloading jaraco.context-6.0.1-py3-none-any.whl (6.8 kB)
+2025-12-09T09:49:28.8177222Z Downloading backports.tarfile-1.2.0-py3-none-any.whl (30 kB)
+2025-12-09T09:49:28.8382768Z Downloading jaraco_functools-4.3.0-py3-none-any.whl (10 kB)
+2025-12-09T09:49:28.8587102Z Downloading mako-1.3.10-py3-none-any.whl (78 kB)
+2025-12-09T09:49:28.8827993Z Downloading markupsafe-3.0.3-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (20 kB)
+2025-12-09T09:49:28.9034217Z Downloading more_itertools-10.8.0-py3-none-any.whl (69 kB)
+2025-12-09T09:49:28.9239347Z Downloading pycparser-2.23-py3-none-any.whl (118 kB)
+2025-12-09T09:49:29.0299440Z Building wheels for collected packages: spotify-yt-transfer
+2025-12-09T09:49:29.0308731Z   Building editable for spotify-yt-transfer (pyproject.toml): started
+2025-12-09T09:49:29.2489381Z   Building editable for spotify-yt-transfer (pyproject.toml): finished with status 'done'
+2025-12-09T09:49:29.2494975Z   Created wheel for spotify-yt-transfer: filename=spotify_yt_transfer-1.0.0-0.editable-py3-none-any.whl size=5032 sha256=7130745df522f26794fa0793dd59598a3fc6e5350dc033a9233d6ade9b4d0039
+2025-12-09T09:49:29.2496489Z   Stored in directory: /tmp/pip-ephem-wheel-cache-8k92xy49/wheels/8d/a0/3f/e1d107f4a5f6683b7a2ca7e67f63ac1a3016b9baeba0c6ee01
+2025-12-09T09:49:29.2514304Z Successfully built spotify-yt-transfer
+2025-12-09T09:49:29.4559532Z Installing collected packages: zipp, wrapt, urllib3, uritemplate, typing-extensions, tomli, tenacity, ruff, rapidfuzz, pytokens, python-dotenv, pyparsing, pygments, pycparser, pyasn1, protobuf, prometheus-client, pluggy, platformdirs, pillow, pathspec, packaging, oauthlib, mypy-extensions, more-itertools, MarkupSafe, jeepney, iniconfig, idna, h11, greenlet, coverage, click, charset_normalizer, certifi, cachetools, backports.tarfile, backports-asyncio-runner, async-timeout, annotated-types, annotated-doc, uvicorn, typing-inspection, sqlalchemy, rsa, requests, redis, pydantic-core, pyasn1-modules, proto-plus, Mako, jaraco.functools, jaraco.context, jaraco.classes, importlib_metadata, httplib2, httpcore, googleapis-common-protos, exceptiongroup, deprecated, cffi, black, spotipy, requests-oauthlib, pytest, pydantic, limits, google-auth, cryptography, anyio, alembic, starlette, slowapi, SecretStorage, pytest-cov, pytest-asyncio, httpx, google-auth-oauthlib, google-auth-httplib2, google-api-core, prometheus-fastapi-instrumentator, keyring, google-api-python-client, fastapi, spotify-yt-transfer
+2025-12-09T09:49:35.5505790Z 
+2025-12-09T09:49:35.5642604Z Successfully installed Mako-1.3.10 MarkupSafe-3.0.3 SecretStorage-3.5.0 alembic-1.17.2 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.12.0 async-timeout-5.0.1 backports-asyncio-runner-1.2.0 backports.tarfile-1.2.0 black-25.12.0 cachetools-6.2.2 certifi-2025.11.12 cffi-2.0.0 charset_normalizer-3.4.4 click-8.3.1 coverage-7.13.0 cryptography-46.0.3 deprecated-1.3.1 exceptiongroup-1.3.1 fastapi-0.124.0 google-api-core-2.28.1 google-api-python-client-2.187.0 google-auth-2.41.1 google-auth-httplib2-0.2.1 google-auth-oauthlib-1.2.3 googleapis-common-protos-1.72.0 greenlet-3.3.0 h11-0.16.0 httpcore-1.0.9 httplib2-0.31.0 httpx-0.28.1 idna-3.11 importlib_metadata-8.7.0 iniconfig-2.3.0 jaraco.classes-3.4.0 jaraco.context-6.0.1 jaraco.functools-4.3.0 jeepney-0.9.0 keyring-25.7.0 limits-5.6.0 more-itertools-10.8.0 mypy-extensions-1.1.0 oauthlib-3.3.1 packaging-25.0 pathspec-0.12.1 pillow-12.0.0 platformdirs-4.5.1 pluggy-1.6.0 prometheus-client-0.23.1 prometheus-fastapi-instrumentator-7.1.0 proto-plus-1.26.1 protobuf-6.33.2 pyasn1-0.6.1 pyasn1-modules-0.4.2 pycparser-2.23 pydantic-2.12.5 pydantic-core-2.41.5 pygments-2.19.2 pyparsing-3.2.5 pytest-9.0.2 pytest-asyncio-1.3.0 pytest-cov-7.0.0 python-dotenv-1.2.1 pytokens-0.3.0 rapidfuzz-3.14.3 redis-7.1.0 requests-2.32.5 requests-oauthlib-2.0.0 rsa-4.9.1 ruff-0.14.8 slowapi-0.1.9 spotify-yt-transfer-1.0.0 spotipy-2.25.2 sqlalchemy-2.0.44 starlette-0.50.0 tenacity-9.1.2 tomli-2.3.0 typing-extensions-4.15.0 typing-inspection-0.4.2 uritemplate-4.2.0 urllib3-2.6.1 uvicorn-0.38.0 wrapt-2.0.1 zipp-3.23.0
+2025-12-09T09:49:36.5050260Z ##[group]Run ruff check src/ tests/
+2025-12-09T09:49:36.5050576Z [36;1mruff check src/ tests/[0m
+2025-12-09T09:49:36.5050810Z [36;1mblack --check src/ tests/[0m
+2025-12-09T09:49:36.5084828Z shell: /usr/bin/bash -e {0}
+2025-12-09T09:49:36.5085043Z env:
+2025-12-09T09:49:36.5085285Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:36.5085693Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib/pkgconfig
+2025-12-09T09:49:36.5086094Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:36.5086427Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:36.5086761Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.19/x64
+2025-12-09T09:49:36.5087100Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.19/x64/lib
+2025-12-09T09:49:36.5087377Z ##[endgroup]
+2025-12-09T09:49:36.5292957Z All checks passed!
+2025-12-09T09:49:36.9974332Z would reformat /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/src/spotify_yt_transfer/clients/errors.py
+2025-12-09T09:49:37.2201867Z would reformat /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/src/spotify_yt_transfer/database/migrations/versions/63d7ab0fd8b0_add_oauth_state_table.py
+2025-12-09T09:49:37.2243664Z would reformat /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/src/spotify_yt_transfer/database/base.py
+2025-12-09T09:49:37.3764078Z would reformat /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/src/spotify_yt_transfer/services/exceptions.py
+2025-12-09T09:49:37.5735731Z would reformat /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/tests/test_main_endpoints.py
+2025-12-09T09:49:37.7088817Z would reformat /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/tests/test_playlist_service_unit.py
+2025-12-09T09:49:37.8214467Z would reformat /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer/tests/test_migration_service_comprehensive.py
+2025-12-09T09:49:37.8311657Z 
+2025-12-09T09:49:37.8312508Z Oh no! 💥 💔 💥
+2025-12-09T09:49:37.8312863Z 7 files would be reformatted, 51 files would be left unchanged.
+2025-12-09T09:49:37.8528342Z ##[error]Process completed with exit code 1.
+2025-12-09T09:49:37.8630042Z Post job cleanup.
+2025-12-09T09:49:37.9573316Z [command]/usr/bin/git version
+2025-12-09T09:49:37.9610460Z git version 2.52.0
+2025-12-09T09:49:37.9653960Z Temporarily overriding HOME='/home/runner/work/_temp/b352e276-ffe1-4d97-b1f5-e934e7492bab' before making global git config changes
+2025-12-09T09:49:37.9655282Z Adding repository directory to the temporary git global config as a safe directory
+2025-12-09T09:49:37.9667487Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Spotify-YT-Transfer/Spotify-YT-Transfer
+2025-12-09T09:49:37.9701916Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-12-09T09:49:37.9734596Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-12-09T09:49:37.9963989Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-12-09T09:49:37.9985817Z http.https://github.com/.extraheader
+2025-12-09T09:49:37.9998742Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2025-12-09T09:49:38.0028570Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-12-09T09:49:38.0247806Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2025-12-09T09:49:38.0277548Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2025-12-09T09:49:38.0604149Z Cleaning up orphan processes

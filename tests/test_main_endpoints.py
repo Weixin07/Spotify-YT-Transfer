@@ -48,7 +48,9 @@ def test_cache_invalidation_endpoint_invokes_service():
             assert clear_youtube_cache is False
             assert purge_matched is True
             assert purge_failed is True
-            return CacheInvalidationResult(matched_tracks_removed=3, failed_tracks_removed=1, youtube_cache_cleared=False)
+            return CacheInvalidationResult(
+                matched_tracks_removed=3, failed_tracks_removed=1, youtube_cache_cleared=False
+            )
 
     app.dependency_overrides[dependencies.get_cache_service] = lambda: StubCacheService()
 

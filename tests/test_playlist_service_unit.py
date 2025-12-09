@@ -106,7 +106,9 @@ def test_download_playlist_cover_returns_image_bytes_for_valid_image(
     mock_response = MagicMock()
     mock_response.content = b"jpeg-data"
     mock_response.raise_for_status.return_value = None
-    monkeypatch.setattr("spotify_yt_transfer.services.playlist_service.requests.get", lambda *_, **__: mock_response)
+    monkeypatch.setattr(
+        "spotify_yt_transfer.services.playlist_service.requests.get", lambda *_, **__: mock_response
+    )
 
     result = service.download_playlist_cover("playlist123")
 

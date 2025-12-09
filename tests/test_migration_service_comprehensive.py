@@ -251,7 +251,9 @@ class TestMigratePlaylist:
         ]
 
         youtube.find_playlist_by_name.return_value = "PL_test"
-        youtube.search_video_candidates.return_value = [("vid1", "Song1 Artist1 Official")]  # Exact substring match
+        youtube.search_video_candidates.return_value = [
+            ("vid1", "Song1 Artist1 Official")
+        ]  # Exact substring match
 
         repo.get_matched_track.return_value = None
         repo.get_failed_track.return_value = None

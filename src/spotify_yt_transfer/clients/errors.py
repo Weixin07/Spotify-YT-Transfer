@@ -7,4 +7,3 @@ class OAuthCredentialsMissing(RuntimeError):
 
     Signals that the user must complete the authorization flow manually.
     """
-
