@@ -158,7 +158,7 @@ def _load_settings() -> Settings:
 
     # Matching configuration
     matching = MatchingConfig(
-        fuzz_threshold=int(_get_env("MATCH_FUZZ_THRESHOLD", "70")),
+        fuzz_threshold=int(_get_env("MATCH_FUZZ_THRESHOLD", "69")),
     )
 
     # Cover configuration

@@ -236,7 +236,9 @@ class YouTubeClient:
         logger.info(f"Total videos retrieved: {len(video_ids)}")
         return video_ids
 
-    @cached(cache=_video_candidates_cache, key=lambda _self, query, max_results=10: (query, max_results))
+    @cached(
+        cache=_video_candidates_cache, key=lambda _self, query, max_results=10: (query, max_results)
+    )
     @retry(
         stop=stop_after_attempt(settings.youtube.retry_attempts),
         wait=wait_random_exponential(
@@ -443,6 +445,11 @@ class YouTubeClient:
         response = request.execute()
 
         logger.info(f"Video {video_id} added to playlist {playlist_id} successfully")
+
+        # Playlist contents changed; drop cached copy so next read is fresh
+        _playlist_items_cache.pop(playlist_id, None)
+        logger.debug(f"Invalidated playlist cache for {playlist_id}")
+
         return response
 
     def clear_search_cache(self) -> None:

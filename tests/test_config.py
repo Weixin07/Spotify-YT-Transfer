@@ -6,4 +6,4 @@ def test_debug_flag_is_bool():
 
 
 def test_default_threshold():
-    assert settings.matching.fuzz_threshold == 70
+    assert settings.matching.fuzz_threshold == 69

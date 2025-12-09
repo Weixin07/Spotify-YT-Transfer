@@ -61,19 +61,45 @@ class TrackMatcher:
 
         # Stage 2: Fuzzy matching
         query = f"{spotify_track['name']} {spotify_track['artist']}"
-        candidates_dict = dict(youtube_candidates)
+        logger.debug(f"Starting fuzzy matching for: {query}")
 
-        best_match = process.extractOne(
+        # Extract titles for comparison and create mapping back to video IDs
+        titles = [title for _, title in youtube_candidates]
+
+        # Get top 3 matches for logging purposes
+        top_matches = process.extract(
             query,
-            candidates_dict.items(),
+            titles,
             scorer=fuzz.token_sort_ratio,
+            limit=min(3, len(titles)),
         )
 
-        if best_match and best_match[1] > self.threshold:
-            video_id = best_match[0][0]
+        # Log top candidates and their scores
+        logger.debug(f"Top {len(top_matches)} fuzzy match candidates:")
+        for i, match in enumerate(top_matches, 1):
+            title, score, idx = match
+            video_id = youtube_candidates[idx][0]
+            logger.debug(f"  {i}. [{score:.1f}] {video_id} - {title}")
+
+        # Get the best match
+        best_match = top_matches[0] if top_matches else None
+
+        if best_match and best_match[1] >= self.threshold:
+            # Get the index of the best matching title
+            best_title_index = best_match[2]
+            video_id = youtube_candidates[best_title_index][0]
             score = best_match[1]
-            logger.info(f"Fuzzy match found: {video_id} (score: {score})")
+            logger.info(f"Fuzzy match found: {video_id} (score: {score:.1f})")
             return video_id
 
-        logger.warning(f"No match found above threshold {self.threshold} for: {query}")
+        # Log failure with score information
+        if best_match:
+            best_score = best_match[1]
+            logger.warning(
+                f"No match found above threshold {self.threshold} for: {query} "
+                f"(best score: {best_score:.1f}, need: {self.threshold})"
+            )
+        else:
+            logger.warning(f"No match found above threshold {self.threshold} for: {query}")
+
         return None

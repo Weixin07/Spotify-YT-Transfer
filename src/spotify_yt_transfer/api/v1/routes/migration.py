@@ -80,7 +80,7 @@ router = APIRouter()
     },
 )
 async def migrate_playlist(
-    params: MigrateParams,
+    params: MigrateParams = Depends(),
     service: MigrationService = Depends(get_migration_service),
 ) -> dict[str, str]:
     """

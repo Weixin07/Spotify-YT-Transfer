@@ -66,7 +66,9 @@ class MigrationService:
         self.youtube = youtube_client
         self.repo = repository
         self.matcher = track_matcher or TrackMatcher()
-        logger.info(f"MigrationService initialized with fuzzy match threshold: {self.matcher.threshold}")
+        logger.info(
+            f"MigrationService initialized with fuzzy match threshold: {self.matcher.threshold}"
+        )
 
     def migrate_playlist(
         self,
@@ -112,9 +114,57 @@ class MigrationService:
             )
             logger.info(f"Created new playlist: {yt_playlist_id}")
 
-        # 3. Process each track
+        # 3. Determine existing playlist contents to avoid duplicates
+        try:
+            existing_video_ids = set(self.youtube.get_playlist_items(yt_playlist_id))
+            logger.info(f"Playlist currently has {len(existing_video_ids)} videos")
+        except HttpError as e:
+            if _is_quota_exceeded(e):
+                logger.error("YouTube API quota exceeded while reading playlist items")
+                raise QuotaExceededError(
+                    "YouTube API quota exceeded while reading playlist items",
+                    service="youtube",
+                    details={"stage": "get_playlist_items"},
+                ) from e
+            existing_video_ids = set()
+            logger.warning(
+                "Failed to fetch existing playlist items, proceeding without cache: %s", e
+            )
+
+        # 4. Process each track
         failed_attempts: list[tuple[str, str, str]] = []
 
+        try:
+            self._process_tracks(
+                tracks=tracks,
+                yt_playlist_id=yt_playlist_id,
+                existing_video_ids=existing_video_ids,
+                failed_attempts=failed_attempts,
+            )
+        finally:
+            # Always commit cached matches/failures, even if quota exceeded
+            logger.info("Committing cached track data")
+            self.repo.commit()
+
+        logger.info(f"Migration complete. YouTube playlist ID: {yt_playlist_id}")
+        return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
+
+    def _process_tracks(
+        self,
+        tracks: list[dict],
+        yt_playlist_id: str,
+        existing_video_ids: set[str],
+        failed_attempts: list[tuple[str, str, str]],
+    ) -> None:
+        """
+        Process tracks for migration.
+
+        Args:
+            tracks: List of Spotify tracks
+            yt_playlist_id: YouTube playlist ID
+            existing_video_ids: Set of existing video IDs in playlist
+            failed_attempts: List to collect failed attempts
+        """
         for idx, track in enumerate(tracks, start=1):
             spotify_id = track.get("id")
             track_name = track.get("name")
@@ -128,7 +178,9 @@ class MigrationService:
                 logger.warning(f"Skipping track {idx} (ID: {spotify_id}) - missing name or artist")
                 continue
 
-            logger.info(f"Processing {idx}/{len(tracks)}: {track_name} by {artist} (ID: {spotify_id})")
+            logger.info(
+                f"Processing {idx}/{len(tracks)}: {track_name} by {artist} (ID: {spotify_id})"
+            )
 
             query = f"{track_name} {artist}"
 
@@ -139,6 +191,12 @@ class MigrationService:
             if matched_record:
                 video_id = matched_record.youtube_id
                 logger.info(f"Using cached match: {video_id}")
+            elif failed_record:
+                # Skip searching if we've already determined this track doesn't match
+                logger.info(
+                    f"Skipping previously failed track: {track_name} (reason: {failed_record.reason})"
+                )
+                continue
             else:
                 # Search YouTube with fuzzy matching
                 try:
@@ -169,9 +227,16 @@ class MigrationService:
                         )
                         logger.info(f"Fuzzy matched and cached: {video_id}")
                     else:
+                        # Cache the failure to avoid re-searching on future runs
                         logger.warning(
                             f"No match above threshold ({self.matcher.threshold}) for: {track_name}"
                         )
+                        self.repo.record_failed_track(
+                            spotify_id=spotify_id,
+                            youtube_id="",  # No video ID since match failed
+                            reason="no_match_above_threshold",
+                        )
+                        logger.info(f"Cached failed match for: {spotify_id}")
                         continue
                 except HttpError as e:
                     if _is_quota_exceeded(e):
@@ -184,11 +249,16 @@ class MigrationService:
                     logger.error(f"Error searching for track: {e}")
                     continue
 
+            if video_id in existing_video_ids:
+                logger.info(f"Skipping {video_id}; already in playlist {yt_playlist_id}")
+                continue
+
             # Add to playlist
             if video_id:
                 try:
                     self.youtube.add_video_to_playlist(yt_playlist_id, video_id)
                     logger.info(f"Added {video_id} to playlist")
+                    existing_video_ids.add(video_id)
 
                     # Clear from failed tracks if it was previously failed
                     if failed_record:
@@ -209,12 +279,12 @@ class MigrationService:
                     logger.error(f"Unexpected error adding {video_id}: {ex}")
                     failed_attempts.append((spotify_id, video_id, "unknown_error"))
 
-        # 4. Record failures
+        # 5. Record failures
         for spotify_id, yid, reason in failed_attempts:
             self.repo.record_failed_track(spotify_id, yid, reason)
             logger.info(f"Recorded failed track: {spotify_id}")
 
-        # 5. Retry failures
+        # 6. Retry failures
         logger.info(f"Starting retry pass for {len(failed_attempts)} failed tracks")
         for spotify_id, yid, _ in failed_attempts:
             try:
@@ -229,7 +299,3 @@ class MigrationService:
                     break
             except Exception as ex:
                 logger.error(f"Unexpected error during retry for {yid}: {ex}")
-
-        logger.info(f"Migration complete. YouTube playlist ID: {yt_playlist_id}")
-        self.repo.commit()
-        return {"message": "Migration complete", "youtube_playlist_id": yt_playlist_id}
