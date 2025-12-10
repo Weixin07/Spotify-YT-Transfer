@@ -1,6 +1,7 @@
 """Application configuration with environment variable support."""
 
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -108,10 +109,44 @@ class Settings:
     token_storage: TokenStorageConfig
 
 
-def _get_env(key: str, default: str | None = None, required: bool = False) -> str:
-    """Get environment variable with optional validation."""
+def _is_test_context(app_env: str) -> bool:
+    """Return True when running under pytest or in an explicitly declared test env."""
+    env = app_env.lower()
+    if env in {"test", "testing"}:
+        return True
+    if "PYTEST_CURRENT_TEST" in os.environ:
+        return True
+    return "pytest" in sys.modules or any("pytest" in arg for arg in sys.argv[:1])
+
+
+_TEST_DEFAULTS: dict[str, str] = {
+    "SPOTIFY_CLIENT_ID": "test-spotify-client-id",
+    "SPOTIFY_CLIENT_SECRET": "test-spotify-client-secret",
+    "SPOTIFY_REDIRECT_URI": "http://localhost:8000/v1/auth/spotify/callback",
+    "YOUTUBE_CLIENT_ID": "test-youtube-client-id",
+    "YOUTUBE_CLIENT_SECRET": "test-youtube-client-secret",
+    "YOUTUBE_REDIRECT_URI": "http://localhost:8000/v1/auth/youtube/callback",
+}
+
+
+def _get_env(
+    key: str,
+    default: str | None = None,
+    *,
+    required: bool = False,
+    use_test_fallback: bool = False,
+) -> str:
+    """Get environment variable with optional validation and test fallbacks."""
     value = os.getenv(key, default)
-    if required and not value:
+    if value:
+        return value
+
+    if required and use_test_fallback:
+        test_value = _TEST_DEFAULTS.get(key)
+        if test_value is not None:
+            return test_value
+
+    if required:
         raise ValueError(f"Required environment variable {key} is not set")
     return value or ""
 
@@ -121,12 +156,13 @@ def _load_settings() -> Settings:
     # Debug mode
     debug = os.getenv("DEBUG", "False").lower() in ("true", "1", "t")
     environment = os.getenv("APP_ENV", "development")
+    test_mode = _is_test_context(environment)
 
     # Spotify configuration
     spotify = SpotifyConfig(
-        client_id=_get_env("SPOTIFY_CLIENT_ID", required=True),
-        client_secret=_get_env("SPOTIFY_CLIENT_SECRET", required=True),
-        redirect_uri=_get_env("SPOTIFY_REDIRECT_URI", required=True),
+        client_id=_get_env("SPOTIFY_CLIENT_ID", required=True, use_test_fallback=test_mode),
+        client_secret=_get_env("SPOTIFY_CLIENT_SECRET", required=True, use_test_fallback=test_mode),
+        redirect_uri=_get_env("SPOTIFY_REDIRECT_URI", required=True, use_test_fallback=test_mode),
         retry_attempts=int(_get_env("SPOTIFY_RETRY_ATTEMPTS", "3")),
         retry_multiplier=float(_get_env("SPOTIFY_RETRY_MULTIPLIER", "1.0")),
         retry_max=int(_get_env("SPOTIFY_RETRY_MAX", "10")),
@@ -134,9 +170,9 @@ def _load_settings() -> Settings:
 
     # YouTube configuration
     youtube = YouTubeConfig(
-        client_id=_get_env("YOUTUBE_CLIENT_ID", required=True),
-        client_secret=_get_env("YOUTUBE_CLIENT_SECRET", required=True),
-        redirect_uri=_get_env("YOUTUBE_REDIRECT_URI", required=True),
+        client_id=_get_env("YOUTUBE_CLIENT_ID", required=True, use_test_fallback=test_mode),
+        client_secret=_get_env("YOUTUBE_CLIENT_SECRET", required=True, use_test_fallback=test_mode),
+        redirect_uri=_get_env("YOUTUBE_REDIRECT_URI", required=True, use_test_fallback=test_mode),
         retry_attempts=int(_get_env("YOUTUBE_RETRY_ATTEMPTS", "3")),
         retry_multiplier=float(_get_env("YOUTUBE_RETRY_MULTIPLIER", "1.0")),
         retry_max=int(_get_env("YOUTUBE_RETRY_MAX", "10")),

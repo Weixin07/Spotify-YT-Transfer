@@ -45,6 +45,9 @@ cp .env.example .env
 # Edit .env with your API credentials
 # - Spotify: client_id, client_secret, redirect_uri
 # - YouTube: client_id, client_secret
+#
+# For automated tests, set APP_ENV=test to load safe placeholder credentials
+# (production and development must use real secrets).
 ```
 
 Running the Service
