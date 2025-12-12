@@ -131,7 +131,7 @@ def test_migrate_playlist_success():
         TestClient(app) as client,
     ):
         resp = client.post(
-            "/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
+            "/v1/migrate", params={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
         )
     assert resp.status_code == 200
     assert resp.json()["youtube_playlist_id"] == "yt123"
@@ -153,7 +153,7 @@ def test_migrate_playlist_error_branches(behavior, status, code):
         TestClient(app) as client,
     ):
         resp = client.post(
-            "/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
+            "/v1/migrate", params={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
         )
     assert resp.status_code == status
     payload = resp.json()
@@ -167,7 +167,7 @@ def test_migrate_playlist_unexpected_error():
         TestClient(app) as client,
     ):
         resp = client.post(
-            "/v1/migrate", json={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
+            "/v1/migrate", params={"spotify_playlist_id": "abc", "youtube_playlist_title": "foo"}
         )
     assert resp.status_code == 500
     assert resp.json()["detail"]["code"] == "unexpected_error"

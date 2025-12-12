@@ -86,3 +86,15 @@ def test_empty_candidates():
     spotify = {"name": "Test", "artist": "Artist"}
     candidates = []
     assert matcher.match_track(spotify, candidates) is None
+
+
+def test_disallowed_terms_are_skipped():
+    """Candidates containing disallowed terms should be skipped entirely."""
+    matcher = TrackMatcher()
+    spotify = {"name": "Song", "artist": "Artist"}
+    candidates = [
+        ("id_live", "Song - Artist (Live)"),
+        ("id_cover", "Song by Artist [Cover]"),
+        ("id_good", "Song - Artist (Official Video)"),
+    ]
+    assert matcher.match_track(spotify, candidates) == "id_good"

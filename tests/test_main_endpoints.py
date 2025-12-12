@@ -85,7 +85,7 @@ def test_migrate_endpoint_accepts_post_body():
     try:
         r = client.post(
             "/v1/migrate",
-            json={"spotify_playlist_id": "SP123", "youtube_playlist_title": "Test Playlist"},
+            params={"spotify_playlist_id": "SP123", "youtube_playlist_title": "Test Playlist"},
         )
     finally:
         app.dependency_overrides.clear()
