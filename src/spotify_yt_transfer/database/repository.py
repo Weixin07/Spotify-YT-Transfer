@@ -54,6 +54,7 @@ class TrackRepository:
         artist: str,
         youtube_id: str,
         album: str | None = None,
+        youtube_title: str | None = None,
     ) -> MatchedTrack:
         """
         Save or update a matched track.
@@ -64,6 +65,7 @@ class TrackRepository:
             artist: Artist name
             youtube_id: YouTube video identifier
             album: Album name (optional)
+            youtube_title: YouTube video title (optional; used for audits)
 
         Returns:
             The saved MatchedTrack instance
@@ -76,6 +78,7 @@ class TrackRepository:
             existing.artist = artist
             existing.album = album
             existing.youtube_id = youtube_id
+            existing.youtube_title = youtube_title
             track = existing
             logger.debug("Updated matched track: %s -> %s", spotify_id, youtube_id)
         else:
@@ -86,6 +89,7 @@ class TrackRepository:
                 artist=artist,
                 album=album,
                 youtube_id=youtube_id,
+                youtube_title=youtube_title,
             )
             self.db.add(track)
             logger.debug("Saved new matched track: %s -> %s", spotify_id, youtube_id)
@@ -104,6 +108,20 @@ class TrackRepository:
         self.db.flush()
         logger.info("Removed %s matched track cache entries", deleted)
         return deleted
+
+    def delete_matched_track(self, spotify_id: str) -> bool:
+        """
+        Remove a single cached matched track by Spotify ID.
+
+        Returns:
+            True if a record was deleted, False otherwise.
+        """
+        deleted = self.db.query(MatchedTrack).filter_by(spotify_id=spotify_id).delete()
+        if deleted:
+            self.db.flush()
+            logger.debug("Deleted matched track for Spotify ID: %s", spotify_id)
+            return True
+        return False
 
     def get_all_matched_tracks(self) -> list[MatchedTrack]:
         """

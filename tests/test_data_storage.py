@@ -8,7 +8,7 @@ def test_save_and_get_matched_track():
     repo = TrackRepository(db)
 
     # Save a matched track
-    repo.save_matched_track("sid1", "Song", "Artist", "yt1", "Album")
+    repo.save_matched_track("sid1", "Song", "Artist", "yt1", "Album", "Title")
 
     # Retrieve it
     rec = repo.get_matched_track("sid1")
@@ -16,6 +16,7 @@ def test_save_and_get_matched_track():
     assert rec.youtube_id == "yt1"
     assert rec.song_name == "Song"
     assert rec.artist == "Artist"
+    assert rec.youtube_title == "Title"
 
 
 def test_record_and_clear_failed_track():

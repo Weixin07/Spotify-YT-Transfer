@@ -1,6 +1,11 @@
 """Business logic services for playlist migration and management."""
 
-from spotify_yt_transfer.services.cache_service import CacheInvalidationResult, CacheService
+from spotify_yt_transfer.services.cache_service import (
+    CacheInvalidationResult,
+    CacheService,
+    MatchedTrackAudit,
+    MatchedTrackAuditResult,
+)
 from spotify_yt_transfer.services.exceptions import (
     ExternalServiceError,
     QuotaExceededError,
@@ -21,6 +26,8 @@ __all__ = [
     "CacheInvalidationResult",
     "CacheService",
     "ExternalServiceError",
+    "MatchedTrackAudit",
+    "MatchedTrackAuditResult",
     "MigrationService",
     "OAuthAuthorizeResponse",
     "OAuthService",

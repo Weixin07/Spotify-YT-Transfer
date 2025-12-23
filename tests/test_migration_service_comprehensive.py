@@ -196,6 +196,7 @@ class TestMigratePlaylist:
             artist="NewArtist",
             youtube_id="found_vid_456",  # Fuzzy matcher picks the best match
             album="NewAlbum",
+            youtube_title="NewSong NewArtist Official Video",
         )
 
     def test_migrate_skips_tracks_without_name_or_artist(self, migration_service, mock_clients):

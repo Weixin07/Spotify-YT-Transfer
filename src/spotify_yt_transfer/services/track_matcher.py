@@ -22,6 +22,7 @@ DISALLOWED_TERMS: tuple[str, ...] = (
     "leak",
     "fanmade",
     "cover",
+    "covered",
     "karaoke",
     "instrumental",
     "backing track",
@@ -41,6 +42,9 @@ DISALLOWED_TERMS: tuple[str, ...] = (
     # Tempo / processing
     "sped up",
     "speed up",
+    # Instrument-specific exclusions
+    "guitar",
+    "loop",
 )
 
 
@@ -94,7 +98,7 @@ class TrackMatcher:
         self,
         spotify_track: dict[str, str | None],
         youtube_candidates: list[tuple[str, str]],
-    ) -> str | None:
+    ) -> tuple[str, str] | None:
         """
         Find the best matching YouTube video ID for a Spotify track.
 
@@ -107,7 +111,7 @@ class TrackMatcher:
             youtube_candidates: List of tuples [(video_id, video_title), ...]
 
         Returns:
-            The video_id of the best match, or None if no good match is found
+            Tuple of (video_id, original_title) for the best match, or None if no good match is found
         """
         if not youtube_candidates:
             logger.warning("No YouTube candidates provided for matching")
@@ -137,7 +141,7 @@ class TrackMatcher:
         for vid, _title, normalized_title in filtered_candidates:
             if target and target in normalized_title:
                 logger.info(f"Exact substring match found: {vid}")
-                return vid
+                return vid, _title
 
         # Stage 2: Fuzzy matching
         query = f"{spotify_track['name']} {spotify_track['artist']}"
@@ -162,15 +166,15 @@ class TrackMatcher:
             logger.debug(f"  {i}. [{score:.1f}] {video_id} - {filtered_candidates[idx][1]}")
 
         # Get the best match
-        best_match = top_matches[0] if top_matches else None
+            best_match = top_matches[0] if top_matches else None
 
         if best_match and best_match[1] >= self.threshold:
             # Get the index of the best matching title
             best_title_index = best_match[2]
-            video_id = filtered_candidates[best_title_index][0]
+            video_id, original_title, _ = filtered_candidates[best_title_index]
             score = best_match[1]
             logger.info(f"Fuzzy match found: {video_id} (score: {score:.1f})")
-            return video_id
+            return video_id, original_title
 
         # Log failure with score information
         if best_match:

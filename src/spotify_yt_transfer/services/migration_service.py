@@ -171,6 +171,7 @@ class MigrationService:
             track_name = track.get("name")
             artist = track.get("artist")
             video_id: str | None = None
+            matched_title: str | None = None
 
             if not spotify_id:
                 logger.warning(f"Skipping track {idx} - missing Spotify ID")
@@ -193,13 +194,37 @@ class MigrationService:
             if matched_record:
                 video_id = matched_record.youtube_id
                 logger.info(f"Using cached match: {video_id}")
-            elif failed_record:
+                try:
+                    if not self.youtube.is_video_available(video_id):
+                        logger.warning(
+                            "Cached video %s is unavailable. Clearing cache entry and re-searching.",
+                            video_id,
+                        )
+                        self.repo.delete_matched_track(spotify_id)
+                        matched_record = None
+                        video_id = None
+                    else:
+                        logger.info("Cached video %s is available", video_id)
+                except HttpError as e:
+                    if _is_quota_exceeded(e):
+                        logger.error("YouTube API quota exceeded during availability check")
+                        raise QuotaExceededError(
+                            "YouTube API quota exceeded while validating cached match",
+                            service="youtube",
+                            details={"stage": "validate_cached_match"},
+                        ) from e
+                    logger.warning("Failed to validate cached match availability: %s", e)
+                    matched_record = None
+                    video_id = None
+
+            if video_id is None and failed_record:
                 # Skip searching if we've already determined this track doesn't match
                 logger.info(
                     f"Skipping previously failed track: {track_name} (reason: {failed_record.reason})"
                 )
                 continue
-            else:
+
+            if video_id is None:
                 # Search YouTube with fuzzy matching
                 try:
                     # Get multiple candidates from YouTube
@@ -217,15 +242,45 @@ class MigrationService:
                         "artist": artist,
                         "album": track.get("album"),
                     }
-                    video_id = self.matcher.match_track(spotify_track_info, candidates)
+                    match_result = self.matcher.match_track(spotify_track_info, candidates)
+                    if match_result:
+                        video_id, matched_title = match_result
 
                     if video_id:
+                        try:
+                            if not self.youtube.is_video_available(video_id):
+                                logger.warning(
+                                    "Matched video %s is unavailable. Skipping and recording failure.",
+                                    video_id,
+                                )
+                                self.repo.record_failed_track(
+                                    spotify_id=spotify_id,
+                                    youtube_id=video_id,
+                                    reason="unavailable_on_youtube",
+                                )
+                                video_id = None
+                                continue
+                        except HttpError as e:
+                            if _is_quota_exceeded(e):
+                                logger.error(
+                                    "YouTube API quota exceeded during availability validation"
+                                )
+                                raise QuotaExceededError(
+                                    "YouTube API quota exceeded while validating match",
+                                    service="youtube",
+                                    details={"stage": "validate_match"},
+                                ) from e
+                            logger.warning("Failed to validate matched video availability: %s", e)
+                            video_id = None
+                            continue
+
                         self.repo.save_matched_track(
                             spotify_id=spotify_id,  # Use real Spotify ID
                             song_name=track_name,
                             artist=artist,
                             youtube_id=video_id,
                             album=track.get("album"),
+                            youtube_title=matched_title,
                         )
                         logger.info(f"Fuzzy matched and cached: {video_id}")
                     else:

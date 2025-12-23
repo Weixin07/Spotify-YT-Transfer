@@ -32,6 +32,8 @@ _playlist_name_cache: TTLCache = TTLCache(maxsize=100, ttl=15 * 60)
 _playlist_items_cache: TTLCache = TTLCache(maxsize=100, ttl=15 * 60)
 _video_candidates_cache: TTLCache = TTLCache(maxsize=1000, ttl=15 * 60)
 _video_search_cache: TTLCache = TTLCache(maxsize=1000, ttl=15 * 60)
+_video_title_cache: TTLCache = TTLCache(maxsize=2000, ttl=15 * 60)
+_video_title_cache: TTLCache = TTLCache(maxsize=2000, ttl=15 * 60)
 
 
 def _is_quota_exceeded(error: HttpError) -> bool:
@@ -308,6 +310,51 @@ class YouTubeClient:
         logger.info(f"Found {len(candidates)} candidates for query: '{query}'")
         return candidates
 
+    @cached(cache=_video_title_cache, key=lambda _self, video_id: video_id)
+    @retry(
+        stop=stop_after_attempt(settings.youtube.retry_attempts),
+        wait=wait_random_exponential(
+            multiplier=settings.youtube.retry_multiplier,
+            max=settings.youtube.retry_max,
+        ),
+        retry=retry_if_exception(lambda e: isinstance(e, HttpError) and not _is_quota_exceeded(e)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+    )
+    def get_video_title(self, video_id: str) -> str | None:
+        """
+        Fetch the title for a single YouTube video.
+
+        Args:
+            video_id: YouTube video identifier
+
+        Returns:
+            The video title, or None if not found
+
+        Raises:
+            HttpError: If the YouTube API request fails (except quota errors)
+        """
+        logger.debug("Fetching YouTube title for %s", video_id)
+
+        response = (
+            self.service.videos()
+            .list(part="snippet", id=video_id, maxResults=1)
+            .execute()
+        )
+
+        items = response.get("items", [])
+        if not items:
+            logger.info("Video %s not found when retrieving title", video_id)
+            return None
+
+        snippet = items[0].get("snippet", {})
+        title = snippet.get("title")
+
+        if not title:
+            logger.info("Video %s is missing a title in snippet", video_id)
+            return None
+
+        return title
+
     @cached(cache=_video_search_cache, key=lambda _self, query: query)
     @retry(
         stop=stop_after_attempt(settings.youtube.retry_attempts),
@@ -458,4 +505,54 @@ class YouTubeClient:
         """Clear in-memory YouTube search results caches."""
         _video_candidates_cache.clear()
         _video_search_cache.clear()
+        _video_title_cache.clear()
         logger.debug("YouTube search caches cleared")
+
+    def is_video_available(self, video_id: str) -> bool:
+        """
+        Check whether a YouTube video is playable/available.
+
+        Returns False for deleted/blocked/private/unprocessed videos.
+        """
+        try:
+            response = (
+                self.service.videos()
+                .list(part="status,contentDetails", id=video_id, maxResults=1)
+                .execute()
+            )
+            items = response.get("items", [])
+            if not items:
+                logger.warning("Video %s not found when checking availability", video_id)
+                return False
+
+            item = items[0]
+            status = item.get("status", {})
+            upload_status = status.get("uploadStatus")
+            privacy_status = status.get("privacyStatus")
+            content_details = item.get("contentDetails", {})
+            region_restriction = content_details.get("regionRestriction", {})
+
+            if upload_status != "processed":
+                logger.info("Video %s unavailable due to uploadStatus=%s", video_id, upload_status)
+                return False
+
+            if privacy_status not in {"public", "unlisted"}:
+                logger.info(
+                    "Video %s unavailable due to privacyStatus=%s", video_id, privacy_status
+                )
+                return False
+
+            if region_restriction.get("blocked"):
+                logger.info("Video %s is region-blocked", video_id)
+                return False
+
+            return True
+
+        except HttpError as e:
+            if _is_quota_exceeded(e):
+                raise
+            logger.warning("Failed to validate availability for %s: %s", video_id, e)
+            return False
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Unexpected error validating availability for %s: %s", video_id, exc)
+            return False

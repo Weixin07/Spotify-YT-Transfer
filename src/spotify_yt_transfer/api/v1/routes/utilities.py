@@ -16,6 +16,8 @@ from spotify_yt_transfer.api.dependencies import (
 from spotify_yt_transfer.api.errors import ErrorCodes, error_response
 from spotify_yt_transfer.clients import YouTubeClient
 from spotify_yt_transfer.schemas import (
+    AuditMatchedTracksRequest,
+    AuditMatchedTracksResponse,
     CacheInvalidateRequest,
     CacheInvalidateResponse,
     PlaylistInfo,
@@ -27,6 +29,7 @@ from spotify_yt_transfer.schemas import (
 from spotify_yt_transfer.services import (
     CacheService,
     PlaylistService,
+    QuotaExceededError,
     ServiceError,
     ValidationServiceError,
 )
@@ -427,5 +430,73 @@ async def invalidate_cache(
             status_code=500,
             detail=error_response(
                 ErrorCodes.UNEXPECTED_ERROR, "Unexpected error invalidating cache"
+            ),
+        ) from exc
+
+
+@router.post(
+    "/cache/audit-matched-tracks",
+    response_model=AuditMatchedTracksResponse,
+    summary="Audit cached matches for disallowed terms",
+    description=(
+        "Scans cached matched tracks and reports any whose YouTube titles contain disallowed terms. "
+        "Optionally deletes flagged matches to force re-matching on the next run."
+    ),
+)
+async def audit_matched_tracks(
+    options: AuditMatchedTracksRequest,
+    service: CacheService = Depends(get_cache_service),
+) -> AuditMatchedTracksResponse:
+    """
+    Inspect cached matched tracks for disallowed terms and optionally remove them.
+    """
+    logger.info("Auditing matched tracks (remove_flagged=%s)", options.remove_flagged)
+
+    try:
+        result = await run_in_threadpool(service.audit_matched_tracks, options.remove_flagged)
+        service.repository.commit()
+
+        response = AuditMatchedTracksResponse(
+            total_checked=result.total_checked,
+            flagged_count=len(result.flagged),
+            removed_count=result.removed,
+            flagged=[
+                {
+                    "spotify_id": item.spotify_id,
+                    "youtube_id": item.youtube_id,
+                    "title": item.title,
+                    "song_name": item.song_name,
+                    "artist": item.artist,
+                }
+                for item in result.flagged
+            ],
+        )
+
+        logger.info(
+            "Audit complete: checked=%s flagged=%s removed=%s",
+            response.total_checked,
+            response.flagged_count,
+            response.removed_count,
+        )
+
+        return response
+    except QuotaExceededError as exc:
+        logger.warning("Audit aborted due to quota exhaustion: %s", exc)
+        raise HTTPException(
+            status_code=429,
+            detail=error_response(exc.code, str(exc), exc.details),
+        ) from exc
+    except ServiceError as exc:
+        logger.error("Audit service error: %s", exc)
+        raise HTTPException(
+            status_code=500,
+            detail=error_response(exc.code, str(exc), exc.details),
+        ) from exc
+    except Exception as exc:
+        logger.exception("Unexpected error auditing matched tracks")
+        raise HTTPException(
+            status_code=500,
+            detail=error_response(
+                ErrorCodes.UNEXPECTED_ERROR, "Unexpected error auditing matched tracks"
             ),
         ) from exc

@@ -35,3 +35,34 @@ class CacheInvalidateResponse(BaseModel):
         ...,
         description="Whether the in-memory YouTube search cache was cleared.",
     )
+
+
+class AuditMatchedTracksRequest(BaseModel):
+    """Options for auditing cached matched tracks."""
+
+    remove_flagged: bool = Field(
+        False,
+        description="Delete matched tracks whose YouTube titles contain disallowed terms.",
+    )
+
+
+class AuditMatchedTrack(BaseModel):
+    """A matched track flagged for containing disallowed terms."""
+
+    spotify_id: str = Field(..., description="Spotify track ID associated with the match.")
+    youtube_id: str = Field(..., description="YouTube video ID currently cached.")
+    title: str = Field(..., description="Current YouTube video title.")
+    song_name: str = Field(..., description="Cached Spotify track name.")
+    artist: str = Field(..., description="Cached Spotify artist.")
+
+
+class AuditMatchedTracksResponse(BaseModel):
+    """Summary of matched-track audit results."""
+
+    total_checked: int = Field(..., description="Total matched tracks inspected.")
+    flagged_count: int = Field(..., description="Number of tracks containing disallowed terms.")
+    removed_count: int = Field(..., description="Number of flagged tracks removed from cache.")
+    flagged: list[AuditMatchedTrack] = Field(
+        default_factory=list,
+        description="Details of flagged cached matches.",
+    )

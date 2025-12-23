@@ -29,7 +29,7 @@ def repository():
 def matcher():
     mock_matcher = MagicMock()
     mock_matcher.threshold = 80
-    mock_matcher.match_track.return_value = "yt_video_from_matcher"
+    mock_matcher.match_track.return_value = ("yt_video_from_matcher", "Title from matcher")
     return mock_matcher
 
 
@@ -69,7 +69,7 @@ def test_migrate_playlist_records_failures_and_retries_successfully(
     repository.get_matched_track.return_value = None
     repository.get_failed_track.return_value = None
     youtube_client.search_video_candidates.return_value = [("yt_candidate", "Song1 - Artist1")]
-    matcher.match_track.return_value = "yt_candidate"
+    matcher.match_track.return_value = ("yt_candidate", "Song1 - Artist1")
 
     youtube_client.add_video_to_playlist.side_effect = [Exception("first attempt"), None]
 
@@ -88,6 +88,7 @@ def test_migrate_playlist_records_failures_and_retries_successfully(
         artist="Artist1",
         youtube_id="yt_candidate",
         album="Album1",
+        youtube_title="Song1 - Artist1",
     )
     repository.record_failed_track.assert_called_once_with(
         "spotify_1", "yt_candidate", "unknown_error"

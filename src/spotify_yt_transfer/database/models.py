@@ -23,6 +23,7 @@ class MatchedTrack(Base):
     artist: Mapped[str] = mapped_column(String, nullable=False)
     album: Mapped[str | None] = mapped_column(String, nullable=True)
     youtube_id: Mapped[str] = mapped_column(String, nullable=False)
+    youtube_title: Mapped[str | None] = mapped_column(String, nullable=True)
 
     def __repr__(self) -> str:
         return f"<MatchedTrack(spotify_id='{self.spotify_id}', song='{self.song_name}', artist='{self.artist}')>"

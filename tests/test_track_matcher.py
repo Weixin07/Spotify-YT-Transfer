@@ -5,7 +5,7 @@ def test_match_track_success():
     matcher = TrackMatcher()
     spotify = {"name": "Foo", "artist": "Bar"}
     candidates = [("id1", "Foo Bar"), ("id2", "Other")]
-    assert matcher.match_track(spotify, candidates) == "id1"
+    assert matcher.match_track(spotify, candidates) == ("id1", "Foo Bar")
 
 
 def test_match_track_failure():
@@ -29,7 +29,7 @@ def test_fuzzy_match_success():
         ("f0I5yGE1zXE", "Chris Brown - Summer Too Hot (Official Video)"),
     ]
     # Should match the first candidate with fuzzy matching (score ~71)
-    assert matcher.match_track(spotify, candidates) == "Kjof9tYTqD0"
+    assert matcher.match_track(spotify, candidates) == ("Kjof9tYTqD0", candidates[0][1])
 
 
 def test_fuzzy_match_threshold_boundary():
@@ -65,7 +65,7 @@ def test_fuzzy_match_selects_best_candidate():
         ("id3", "Random Song"),  # Lowest score
     ]
     # Should match the second candidate (best match)
-    assert matcher.match_track(spotify, candidates) == "id2"
+    assert matcher.match_track(spotify, candidates) == ("id2", "Ed Sheeran - Shape of You (Official Video)")
 
 
 def test_exact_match_takes_precedence():
@@ -77,7 +77,7 @@ def test_exact_match_takes_precedence():
         ("fuzzy_match", "Test by Artist (Official Music Video)"),  # Would score higher in fuzzy
     ]
     # Should return exact match (first candidate found in Stage 1)
-    assert matcher.match_track(spotify, candidates) == "exact_match"
+    assert matcher.match_track(spotify, candidates) == ("exact_match", "Test Artist")
 
 
 def test_empty_candidates():
@@ -97,4 +97,4 @@ def test_disallowed_terms_are_skipped():
         ("id_cover", "Song by Artist [Cover]"),
         ("id_good", "Song - Artist (Official Video)"),
     ]
-    assert matcher.match_track(spotify, candidates) == "id_good"
+    assert matcher.match_track(spotify, candidates) == ("id_good", "Song - Artist (Official Video)")
